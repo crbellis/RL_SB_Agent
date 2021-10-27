@@ -22,13 +22,6 @@ def main():
 	e.pretty_print()
 	e.move("l")
 	e.pretty_print()
-	# print(e.qTable)
 
-	# create a q-table
-	# rows are states, columns are actions
-
-
-
-	
 if __name__ == "__main__":
 	main()
