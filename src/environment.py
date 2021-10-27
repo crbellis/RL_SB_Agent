@@ -14,7 +14,9 @@ class Environment:
 		self.nStorage = nStorage
 		self.nBoxes = nBoxes
 		self.player = player
-	
+		self.board = []
+
+		
 	# initialize environment from file
 	def read_file(self, path: str = ""):
 		try:
@@ -45,11 +47,60 @@ class Environment:
 					self.player = data
 				lineNum += 1
 
+			# initializing empty board
+			self.board = []
+			for _ in range(self.height):
+				self.board.append([0] * self.width)
+			# plot elements
+			self.plot(self.board, self.walls, "#")
+			self.plot(self.board, self.boxes, "$")
+			self.plot(self.board, self.storage, ".")
+			self.board[self.player[1]-1][self.player[0]-1] = "@"
+
 		except Exception as e:
 			print(e)
 
+	def move(self, move: str):
+		# check if move is in allowed moves
+		assert move in ("u", "l", "r", "d")
+		# dictionary for values corresponding to each movement
+		movements = {"u": -1, "d": 1, "r": 1, "l": -1}
+
+		# get new coords
+		if move in ("u", "d"):
+			newCoords = [self.player[1], self.player[0]+movements[move]] 
+		else:
+			newCoords = [self.player[0]+movements[move], self.player[1]] 
+
+		if self.isValid(newCoords, move):
+			# update current player location to empty space
+			self.board[self.player[1]-1][self.player[0]-1] = "_"
+			# update player coords
+			self.player = newCoords
+			# update board with new player location
+			self.board[self.player[1]-1][self.player[0]-1] = "@"
+		return
+
+
+
+	def isValid(self, coords, move):
+		moveLimits = {
+			"d": len(self.board)-1, 
+			"u": len(self.board)-1, 
+			"l": len(self.board[self.player[1]-1]) - 1,
+			"r": len(self.board[self.player[1]-1]) - 1
+		}
+		valid = coords not in self.walls
+		if move in ("d", "u"):
+			valid = valid and moveLimits[move] >= coords[1]-1
+		else:
+			valid = valid and moveLimits[move] >= coords[0]-1
+		if not valid:
+			print("out of bounds")
+		return valid
+
 	def zip_coords(self, values):
-		return [(x, y) for x, y in zip(values[1::2], values[::2])]
+		return [[x, y] for x, y in zip(values[1::2], values[::2])]
 		
 	def plot(self, board: list, coords: list, symbol: str):
 		# coord[1] -> row (y)
@@ -59,22 +110,13 @@ class Environment:
 			board[coord[1]-1][coord[0]-1] = symbol
 	
 	def pretty_print(self):
-		# initializing empty board
-		board = []
-		for _ in range(self.height):
-			board.append([0] * self.width)
-		
-		# plot elements
-		self.plot(board, self.walls, "#")
-		self.plot(board, self.boxes, "$")
-		self.plot(board, self.storage, ".")
-		board[self.player[1]-1][self.player[0]-1] = "@"
 
 		# print out board
-		for row in board:
+		for row in self.board:
 			for column in row:
-				if column != 0:
+				if column != 0 and column != "":
 					print(column, end="")
 				else:
 					print("_", end="")
 			print()
+		print()
