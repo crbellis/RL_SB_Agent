@@ -5,6 +5,10 @@ class Environment:
 		boxes: list = [],storage: list = [], nWalls: int = 0, nStorage: int = 0, 
 		nBoxes: int = 0, player: list = []
 	):
+		"""
+		Constructor for Environment class
+		"""
+		self.movements = {"u": -1, "d": 1, "r": 1, "l": -1}
 		self.height = height
 		self.width = width
 		self.walls = walls
@@ -16,9 +20,15 @@ class Environment:
 		self.player = player
 		self.board = []
 
-		
 	# initialize environment from file
-	def read_file(self, path: str = ""):
+	def read_file(self, path: str = "") -> None:
+		"""
+		Parses data from input text file. Initializes object from file data
+
+		Parameters:
+		----------
+		path: str - path to input file
+		"""
 		try:
 			file = open(path)
 			lineNum = 0
@@ -52,38 +62,28 @@ class Environment:
 			for _ in range(self.height):
 				self.board.append([0] * self.width)
 			# plot elements
-			self.plot(self.board, self.walls, "#")
-			self.plot(self.board, self.boxes, "$")
-			self.plot(self.board, self.storage, ".")
-			self.board[self.player[1]-1][self.player[0]-1] = "@"
+			self.plot(self.walls, 4)
+			self.plot(self.boxes, 3)
+			self.plot(self.storage, 2)
+			self.board[self.player[1]-1][self.player[0]-1] = 1
 
 		except Exception as e:
 			print(e)
 
-	def move(self, move: str):
-		# check if move is in allowed moves
-		assert move in ("u", "l", "r", "d")
-		# dictionary for values corresponding to each movement
-		movements = {"u": -1, "d": 1, "r": 1, "l": -1}
 
-		# get new coords
-		if move in ("u", "d"):
-			newCoords = [self.player[1], self.player[0]+movements[move]] 
-		else:
-			newCoords = [self.player[0]+movements[move], self.player[1]] 
+	def isValid(self, coords, move) -> bool:
+		"""
+		Checks if move is into a wall or if move is out of bounds of environment
 
-		if self.isValid(newCoords, move):
-			# update current player location to empty space
-			self.board[self.player[1]-1][self.player[0]-1] = "_"
-			# update player coords
-			self.player = newCoords
-			# update board with new player location
-			self.board[self.player[1]-1][self.player[0]-1] = "@"
-		return
+		Parameters:
+		-----------
+		coords: list in [x, y] format starting at index 1
+		move: "u" | "d" | "l" | "r"
 
-
-
-	def isValid(self, coords, move):
+		Returns:
+		-------
+		isValid: bool - if move coordinates + move are valid
+		"""
 		moveLimits = {
 			"d": len(self.board)-1, 
 			"u": len(self.board)-1, 
@@ -95,28 +95,97 @@ class Environment:
 			valid = valid and moveLimits[move] >= coords[1]-1
 		else:
 			valid = valid and moveLimits[move] >= coords[0]-1
-		if not valid:
-			print("out of bounds")
+		# if not valid:
+		# 	print("out of bounds")
 		return valid
 
-	def zip_coords(self, values):
+	def parseActions(self) -> list:
+		"""
+		Finds all valid actions given current player state
+		
+		Returns
+		-------
+		validActions: list - all possible valid actions at current state
+		"""
+		validActions = []
+		for action in self.movements.keys():
+			if action in ("u", "d"):
+				if self.isValid([self.player[0], 
+						self.player[1]+self.movements[action]], action):
+					validActions.append(action)
+			else:
+				if self.isValid([self.player[0]+self.movements[action], 
+						self.player[1]], action):
+					validActions.append(action)
+		return validActions
+
+	def move(self, move: str) -> None:
+		"""
+		Moves the players coordinates in a given direction
+
+		Parameters
+		----------
+		move: str - "u" | "d" | "l" | "r" e.g. direction in which the player is 
+		to move
+
+		Updates the player data member in [x, y] format
+		"""
+		# check if move is in allowed moves
+		assert move in ("u", "l", "r", "d")
+		# dictionary for values corresponding to each movement
+
+		# get new coords
+		if move in ("u", "d"):
+			newCoords = [self.player[0], self.player[1]+self.movements[move]] 
+		else:
+			newCoords = [self.player[0]+self.movements[move], self.player[1]] 
+
+		if self.isValid(newCoords, move):
+			# update current player location to empty space
+			self.board[self.player[1]-1][self.player[0]-1] = 0
+			# update player coords
+			self.player = newCoords
+			# update board with new player location
+			self.board[self.player[1]-1][self.player[0]-1] = 1
+		return
+
+
+	def zip_coords(self, values: list) -> list:
+		"""
+		Combines list in to [x, y] coordinates
+
+		Parameters
+		----------
+		values: list - a list of values, parsed from input text file
+
+		Returns
+		-------
+		coordinates: list - list of coordinates e.g. [[x1, y1], [x2, y2]...]
+		"""
 		return [[x, y] for x, y in zip(values[1::2], values[::2])]
 		
-	def plot(self, board: list, coords: list, symbol: str):
+	def plot(self, coords: list, symbol: str or int) -> None:
+		"""
+		Helper function to set coords to a given symbol
+
+		Parameters
+		----------
+		coords: list - list of coordinates to update representation
+		symbol: str | int - symbol to represent the given coords
+		"""
 		# coord[1] -> row (y)
 		# coord[0] -> column (x) hence backwards indexing
 		# -1 since 0 indexed and coords are cartesian
 		for coord in coords:
-			board[coord[1]-1][coord[0]-1] = symbol
+			self.board[coord[1]-1][coord[0]-1] = symbol
 	
-	def pretty_print(self):
-
+	def pretty_print(self) -> None:
+		"""
+		Helper function to visualize board at current state
+		"""
 		# print out board
 		for row in self.board:
 			for column in row:
-				if column != 0 and column != "":
-					print(column, end="")
-				else:
-					print("_", end="")
+				print(column, end="")
 			print()
 		print()
