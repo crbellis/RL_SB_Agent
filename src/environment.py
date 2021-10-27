@@ -91,10 +91,14 @@ class Environment:
 			"r": len(self.board[self.player[1]-1]) - 1
 		}
 		valid = coords not in self.walls
+		coord = 0
+
 		if move in ("d", "u"):
-			valid = valid and moveLimits[move] >= coords[1]-1
+			coord = coords[1]-1
 		else:
-			valid = valid and moveLimits[move] >= coords[0]-1
+			coord = coords[0]-1
+
+		valid = valid and moveLimits[move] >= coord
 		# if not valid:
 		# 	print("out of bounds")
 		return valid
@@ -109,14 +113,14 @@ class Environment:
 		"""
 		validActions = []
 		for action in self.movements.keys():
+			coords = []
 			if action in ("u", "d"):
-				if self.isValid([self.player[0], 
-						self.player[1]+self.movements[action]], action):
-					validActions.append(action)
+				coords = [self.player[0], self.player[1]+self.movements[action]]
 			else:
-				if self.isValid([self.player[0]+self.movements[action], 
-						self.player[1]], action):
-					validActions.append(action)
+				coords =[self.player[0]+self.movements[action], self.player[1]] 
+			if self.isValid(coords, action):
+				validActions.append(action)
+			
 		return validActions
 
 	def move(self, move: str) -> None:

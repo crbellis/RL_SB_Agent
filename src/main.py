@@ -11,10 +11,10 @@ def main():
 	file = "./input/sokoban01.txt"
 	e = Environment()
 	e.read_file(file)
-	print(e.parseActions())
+	print("PARSED ACTIONS: ", e.parseActions())
 	e.pretty_print()
 	e.move("u")
-	print(e.parseActions())
+	print("PARSED ACTIONS: ", e.parseActions())
 	e.pretty_print()
 	e.move("l")
 	e.move("l")
