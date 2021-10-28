@@ -1,3 +1,12 @@
+EMPTY = 0
+PLAYER = "@"
+STORAGE = "."
+BOXES = "$"
+WALLS = "#"
+IN_STORAGE = "*"
+
+
+
 class Environment:
 	# Environment constructor
 	def __init__(
@@ -62,10 +71,10 @@ class Environment:
 			for _ in range(self.height):
 				self.board.append([0] * self.width)
 			# plot elements
-			self.plot(self.walls, 4)
-			self.plot(self.boxes, 3)
-			self.plot(self.storage, 2)
-			self.board[self.player[1]-1][self.player[0]-1] = 1
+			self.plot(self.walls, WALLS)
+			self.plot(self.boxes, BOXES)
+			self.plot(self.storage, STORAGE)
+			self.board[self.player[1]-1][self.player[0]-1] = PLAYER
 
 		except Exception as e:
 			print(e)
@@ -123,7 +132,31 @@ class Environment:
 			
 		return validActions
 
-	def move(self, move: str) -> None:
+	def boxDetection(self, coords: list, row_or_col: int, move: str) -> bool:
+		"""
+		returns bool -  if valid collision
+		"""
+		# check for box collision
+		if coords in self.boxes:
+			# get the index where collision
+			bIdx = self.boxes.index(coords)
+			boxCoords = self.boxes[bIdx].copy()
+			print("MOVING BOX")
+			boxCoords[row_or_col] += self.movements[move]
+
+			# check if moving the box is valid e.g. not pushed beyond wall
+			if self.isValid(boxCoords, move):
+				value = BOXES
+				# check if box is in storage location
+				if boxCoords in self.storage:
+					value = IN_STORAGE
+				self.board[boxCoords[1]-1][boxCoords[0]-1] = value
+				self.boxes[bIdx] = boxCoords
+			else:
+				return False
+		return True
+
+	def move(self, move: str=None) -> None:
 		"""
 		Moves the players coordinates in a given direction
 
@@ -131,28 +164,38 @@ class Environment:
 		----------
 		move: str - "u" | "d" | "l" | "r" e.g. direction in which the player is 
 		to move
+		objectCoords: list - list of [x, y] coordinates for object. Intended 
+		objects are those that can move e.g. player and box objects
 
 		Updates the player data member in [x, y] format
 		"""
 		# check if move is in allowed moves
 		assert move in ("u", "l", "r", "d")
-		# dictionary for values corresponding to each movement
 
 		# get new coords
+		newCoords = self.player.copy()
+		# 0 for row and 1 for col
+		row_or_col = 0
 		if move in ("u", "d"):
-			newCoords = [self.player[0], self.player[1]+self.movements[move]] 
-		else:
-			newCoords = [self.player[0]+self.movements[move], self.player[1]] 
+			row_or_col = 1
+		newCoords[row_or_col] += self.movements[move]
 
+		# check if move isValid
 		if self.isValid(newCoords, move):
-			# update current player location to empty space
-			self.board[self.player[1]-1][self.player[0]-1] = 0
-			# update player coords
-			self.player = newCoords
-			# update board with new player location
-			self.board[self.player[1]-1][self.player[0]-1] = 1
-		return
 
+			# check if player hit box i
+			if self.boxDetection(newCoords, row_or_col, move):
+				oldState = EMPTY
+				# update current player location to empty space
+				if self.player in self.storage:
+					oldState = STORAGE
+
+				self.board[self.player[1]-1][self.player[0]-1] = oldState
+				# update player coords
+				self.player = newCoords
+				# update board with new player location
+				self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+		return
 
 	def zip_coords(self, values: list) -> list:
 		"""

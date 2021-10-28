@@ -11,24 +11,12 @@ def main():
 	file = "./input/sokoban01.txt"
 	e = Environment()
 	e.read_file(file)
-	print("PARSED ACTIONS: ", e.parseActions())
-	e.pretty_print()
-	e.move("u")
-	print("PARSED ACTIONS: ", e.parseActions())
-	e.pretty_print()
-	e.move("l")
-	e.move("l")
-	e.move("l")
-	print("PARSED ACTIONS: ", e.parseActions())
-	e.pretty_print()
-	# e.move("d")
-	# e.pretty_print()
-	# e.move("r")
-	# e.pretty_print()
-	# e.move("u")
-	# e.pretty_print()
-	# e.move("l")
-	# e.pretty_print()
-
+	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
+	move = ""
+	while move != "q":
+		e.pretty_print()
+		move = input("Enter move: ").lower()
+		if move in moveMap.keys():
+			e.move(moveMap[move])
 if __name__ == "__main__":
 	main()
