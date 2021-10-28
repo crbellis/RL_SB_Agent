@@ -1,3 +1,6 @@
+from os import terminal_size
+
+
 EMPTY = 0
 PLAYER = "@"
 STORAGE = "."
@@ -17,7 +20,9 @@ class Environment:
 		"""
 		Constructor for Environment class
 		"""
+		# hash for all movements and corresponding change in position
 		self.movements = {"u": -1, "d": 1, "r": 1, "l": -1}
+		# data from input
 		self.height = height
 		self.width = width
 		self.walls = walls
@@ -27,6 +32,7 @@ class Environment:
 		self.nStorage = nStorage
 		self.nBoxes = nBoxes
 		self.player = player
+		# entire board state representation 2x2 list of size height x width
 		self.board = []
 
 	# initialize environment from file
@@ -141,7 +147,6 @@ class Environment:
 			# get the index where collision
 			bIdx = self.boxes.index(coords)
 			boxCoords = self.boxes[bIdx].copy()
-			print("MOVING BOX")
 			boxCoords[row_or_col] += self.movements[move]
 
 			# check if moving the box is valid e.g. not pushed beyond wall
@@ -156,7 +161,10 @@ class Environment:
 				return False
 		return True
 
-	def move(self, move: str=None) -> None:
+	def terminal(self) -> bool:
+		return all(coords in self.boxes for coords in self.storage)
+
+	def move(self, move: str=None) -> bool or None:
 		"""
 		Moves the players coordinates in a given direction
 
@@ -195,6 +203,8 @@ class Environment:
 				self.player = newCoords
 				# update board with new player location
 				self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+		if self.terminal():
+			return True
 		return
 
 	def zip_coords(self, values: list) -> list:

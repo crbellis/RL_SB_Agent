@@ -13,10 +13,18 @@ def main():
 	e.read_file(file)
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
 	move = ""
-	while move != "q":
+	moves = []
+	while move != "q" and not e.terminal():
 		e.pretty_print()
-		move = input("Enter move: ").lower()
+		move = input("Enter move (q to quit): ").lower()
 		if move in moveMap.keys():
+			moves.append(move)
 			e.move(moveMap[move])
+	if e.terminal():
+		e.pretty_print()
+		print("You won! Here were your moves: ", moves)
+	else:
+		print("you quit")
+
 if __name__ == "__main__":
 	main()
