@@ -1,14 +1,11 @@
-from os import terminal_size
-
+import numpy as np
 
 EMPTY = 0
-PLAYER = "@"
-STORAGE = "."
-BOXES = "$"
-WALLS = "#"
-IN_STORAGE = "*"
-
-
+PLAYER = 1 #"@"
+STORAGE = 2 #"."
+BOXES = 3 #"$"
+WALLS = 4 #"#"
+IN_STORAGE = 5 #"*"
 
 class Environment:
 	# Environment constructor
@@ -34,6 +31,7 @@ class Environment:
 		self.player = player
 		# entire board state representation 2x2 list of size height x width
 		self.board = []
+		self.totalReward = 0
 
 	# initialize environment from file
 	def read_file(self, path: str = "") -> None:
@@ -138,33 +136,28 @@ class Environment:
 			
 		return validActions
 
-	def boxDetection(self, coords: list, row_or_col: int, move: str) -> bool:
+	def boxDetection(self, newBox: list, boxIdx: int, move: str) -> bool:
 		"""
-		returns bool -  if valid collision
+		returns bool -  if valid collision or if not a box
 		"""
-		# check for box collision
-		if coords in self.boxes:
-			# get the index where collision
-			bIdx = self.boxes.index(coords)
-			boxCoords = self.boxes[bIdx].copy()
-			boxCoords[row_or_col] += self.movements[move]
+		# check if moving the box is valid e.g. not pushed beyond wall
+		if self.isValid(newBox, move):
+			value = BOXES
+			# check if box is in storage location
+			if newBox in self.storage:
+				value = IN_STORAGE
 
-			# check if moving the box is valid e.g. not pushed beyond wall
-			if self.isValid(boxCoords, move):
-				value = BOXES
-				# check if box is in storage location
-				if boxCoords in self.storage:
-					value = IN_STORAGE
-				self.board[boxCoords[1]-1][boxCoords[0]-1] = value
-				self.boxes[bIdx] = boxCoords
-			else:
-				return False
-		return True
+			# update board with new value	
+			self.board[newBox[1]-1][newBox[0]-1] = value
+			# update boxes at boxIdx with new box coords
+			self.boxes[boxIdx] = newBox
+			return True
+		return False
 
 	def terminal(self) -> bool:
 		return all(coords in self.boxes for coords in self.storage)
 
-	def move(self, move: str=None) -> bool or None:
+	def move(self, move: str=None) -> tuple[int, bool]:
 		"""
 		Moves the players coordinates in a given direction
 
@@ -177,6 +170,7 @@ class Environment:
 
 		Updates the player data member in [x, y] format
 		"""
+		reward = -1
 		# check if move is in allowed moves
 		assert move in ("u", "l", "r", "d")
 
@@ -186,26 +180,46 @@ class Environment:
 		row_or_col = 0
 		if move in ("u", "d"):
 			row_or_col = 1
+
 		newCoords[row_or_col] += self.movements[move]
 
 		# check if move isValid
 		if self.isValid(newCoords, move):
+			oldState = EMPTY
 
-			# check if player hit box i
-			if self.boxDetection(newCoords, row_or_col, move):
-				oldState = EMPTY
-				# update current player location to empty space
-				if self.player in self.storage:
-					oldState = STORAGE
+			# check if player hit box and if it's valid to move the box
+			# check for box collision
+			if newCoords in self.boxes:
 
-				self.board[self.player[1]-1][self.player[0]-1] = oldState
-				# update player coords
-				self.player = newCoords
-				# update board with new player location
-				self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+				# update the box with new coords
+				# get the index where collision
+				bIdx = self.boxes.index(newCoords)
+				boxCoords = self.boxes[bIdx].copy()
+				boxCoords[row_or_col] += self.movements[move]
+
+				# check if box is valid detection
+				if self.boxDetection(boxCoords, bIdx, move):
+					reward = 100
+					# update current player location to empty space
+					if boxCoords in self.storage:
+						reward = 1000
+				else:
+					return reward, False
+
+			if self.player in self.storage:
+				oldState = STORAGE
+
+			self.board[self.player[1]-1][self.player[0]-1] = oldState
+
+			# update player coords
+			self.player = newCoords
+			# update board with new player location
+			self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+
+		self.totalReward += reward
 		if self.terminal():
-			return True
-		return
+			return reward, True
+		return reward, False
 
 	def zip_coords(self, values: list) -> list:
 		"""
@@ -241,8 +255,26 @@ class Environment:
 		Helper function to visualize board at current state
 		"""
 		# print out board
+		_row = _column = 0
 		for row in self.board:
 			for column in row:
-				print(column, end="")
+				if [_column+1, _row+1] in self.walls:
+					print("#", end="")
+				elif [_column+1, _row+1] == self.player:
+					print("@", end="")
+				elif [_column+1, _row+1] in self.boxes and [column, row] in self.storage:
+					print("*", end="")
+				elif [_column+1, _row+1] in self.boxes:
+					print("$", end="")
+				elif [_column+1, _row+1] in self.storage:
+					print(".", end="")
+				else:
+					print("0", end="")
+				_column += 1
 			print()
+			_row += 1
+			_column = 0
 		print()
+	
+	def to_numpy(self):
+		return np.asarray(self.board)
