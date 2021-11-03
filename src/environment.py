@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import combinations
 
 EMPTY = 0
 PLAYER = 1 #"@"
@@ -6,6 +7,10 @@ STORAGE = 2 #"."
 BOXES = 3 #"$"
 WALLS = 4 #"#"
 IN_STORAGE = 5 #"*"
+
+def deep_copy(list: list) -> list:
+	newList = np.array(list, dtype="bytes")
+	return newList
 
 class Environment:
 	# Environment constructor
@@ -30,7 +35,7 @@ class Environment:
 		self.nBoxes = nBoxes
 		self.player = player
 		# entire board state representation 2x2 list of size height x width
-		self.board = []
+		self.board = np.array([], dtype="bytes")
 		self.totalReward = 0
 
 	# initialize environment from file
@@ -79,6 +84,7 @@ class Environment:
 			self.plot(self.boxes, BOXES)
 			self.plot(self.storage, STORAGE)
 			self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+			self.board = np.array(self.board, dtype="bytes")
 
 		except Exception as e:
 			print(e)
@@ -116,7 +122,7 @@ class Environment:
 		# 	print("out of bounds")
 		return valid
 
-	def parseActions(self) -> list:
+	def parseActions(self, object: list=None) -> list:
 		"""
 		Finds all valid actions given current player state
 		
@@ -124,16 +130,17 @@ class Environment:
 		-------
 		validActions: list - all possible valid actions at current state
 		"""
+		if object == None:
+			object = self.player
 		validActions = []
 		for action in self.movements.keys():
 			coords = []
 			if action in ("u", "d"):
-				coords = [self.player[0], self.player[1]+self.movements[action]]
+				coords = [object[0], object[1]+self.movements[action]]
 			else:
-				coords =[self.player[0]+self.movements[action], self.player[1]] 
+				coords =[object[0]+self.movements[action], object[1]] 
 			if self.isValid(coords, action):
 				validActions.append(action)
-			
 		return validActions
 
 	def boxDetection(self, newBox: list, boxIdx: int, move: str) -> bool:
@@ -262,7 +269,8 @@ class Environment:
 					print("#", end="")
 				elif [_column+1, _row+1] == self.player:
 					print("@", end="")
-				elif [_column+1, _row+1] in self.boxes and [column, row] in self.storage:
+				elif ([_column+1, _row+1] in self.boxes 
+					and [_column+1, _row+1] in self.storage):
 					print("*", end="")
 				elif [_column+1, _row+1] in self.boxes:
 					print("$", end="")
@@ -278,3 +286,39 @@ class Environment:
 	
 	def to_numpy(self):
 		return np.asarray(self.board)
+	
+	def get_states(self, box):
+		"""
+		Returns all possible box states from current state
+		"""
+		states = []
+		box_pos = []
+		actions = self.parseActions(box)
+		for action in actions:
+			tempBox = box.copy()
+			if action in ("u", "d"):
+				tempBox[1] += self.movements[action]
+			else:
+				tempBox[0] += self.movements[action]
+			box_pos.append(tempBox)
+
+		for pos in box_pos:
+			# state = deep_copy(self.board[:]) # construct new list obj
+			state = np.copy(self.board)
+			state[box[1]-1][box[0]-1] = EMPTY # clearing box from state
+			state[pos[1]-1][pos[0]-1] = BOXES
+			states.append(state)
+		return states
+			
+
+		
+
+
+
+				
+				
+				
+			
+
+
+
