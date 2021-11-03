@@ -122,7 +122,7 @@ class maze_search_tree:
                 
             if expanding.depth > max_distance:
                 return None
-        return
+        return None
     
     def maze_distance(self):
         if not self.matrix[self.pos1] or not self.matrix[self.pos2]:
