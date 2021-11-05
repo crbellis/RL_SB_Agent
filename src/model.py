@@ -7,8 +7,8 @@ input_shape = (1, 64)
 model  = tf.keras.models.Sequential([
 	tf.keras.layers.Dense(64, activation='relu', input_shape=(64,)),
 	tf.keras.layers.Dense(32, activation="relu"),
-	tf.keras.layers.Dense(16, activation="relu"),
-	tf.keras.layers.Dense(4)
+	tf.keras.layers.Dense(32, activation="relu"),
+	tf.keras.layers.Dense(4, activation="linear")
 ])
 
 model.compile(loss="mse", optimizer=tf.keras.optimizers.Adam(lr=1e-3))

@@ -1,5 +1,4 @@
 import numpy as np
-from itertools import combinations
 
 EMPTY = 0
 PLAYER = 1 #"@"
@@ -148,7 +147,7 @@ class Environment:
 		returns bool -  if valid collision or if not a box
 		"""
 		# check if moving the box is valid e.g. not pushed beyond wall
-		if self.isValid(newBox, move):
+		if self.isValid(newBox, move) and newBox not in [box for i,box in enumerate(self.boxes) if i != boxIdx]:
 			value = BOXES
 			# check if box is in storage location
 			if newBox in self.storage:
@@ -284,13 +283,14 @@ class Environment:
 			_column = 0
 		print()
 	
-	def to_numpy(self):
-		return np.asarray(self.board)
+	def to_int(self):
+		return np.array(self.board, dtype="int32")
 	
-	def get_states(self, box):
+	def get_states(self, box) -> list:
 		"""
 		Returns all possible box states from current state
 		"""
+		# TODO: if reachable return possible states -
 		states = []
 		box_pos = []
 		actions = self.parseActions(box)
