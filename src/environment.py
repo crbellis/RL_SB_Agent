@@ -1,4 +1,5 @@
 import numpy as np
+from path_finder import path
 
 EMPTY = 0
 PLAYER = 1 #"@"
@@ -6,10 +7,6 @@ STORAGE = 2 #"."
 BOXES = 3 #"$"
 WALLS = 4 #"#"
 IN_STORAGE = 5 #"*"
-
-def deep_copy(list: list) -> list:
-	newList = np.array(list, dtype="bytes")
-	return newList
 
 class Environment:
 	# Environment constructor
@@ -284,13 +281,24 @@ class Environment:
 		print()
 	
 	def to_int(self):
+		"""
+		Converts state to int based numpy array
+		"""
 		return np.array(self.board, dtype="int32")
 	
+	# TODO: if reachable return possible states
 	def get_states(self, box) -> list:
 		"""
-		Returns all possible box states from current state
+		Returns all possible box states from current state based on reachable
+		paths
 		"""
-		# TODO: if reachable return possible states -
+
+		# convert state to boolean format for path finder
+		bool_state = np.where(self.board == b'4', False, True)
+
+		# NOT WORKING
+		path_to_box = path(self.player, box, 100, bool_state)
+		print(path_to_box)
 		states = []
 		box_pos = []
 		actions = self.parseActions(box)
@@ -303,7 +311,6 @@ class Environment:
 			box_pos.append(tempBox)
 
 		for pos in box_pos:
-			# state = deep_copy(self.board[:]) # construct new list obj
 			state = np.copy(self.board)
 			state[box[1]-1][box[0]-1] = EMPTY # clearing box from state
 			state[pos[1]-1][pos[0]-1] = BOXES
