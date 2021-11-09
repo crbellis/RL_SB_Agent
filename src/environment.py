@@ -295,9 +295,8 @@ class Environment:
 
 		# convert state to boolean format for path finder
 		bool_state = np.where(self.board == b'4', False, True)
-
 		# NOT WORKING
-		path_to_box = path(self.player, box, 100, bool_state)
+		path_to_box = path(self.player, box, 1000, bool_state)
 		print(path_to_box)
 		states = []
 		box_pos = []
