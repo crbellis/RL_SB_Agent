@@ -1,4 +1,3 @@
-
 import queue, numpy
 from scipy.optimize import linear_sum_assignment
 
@@ -39,8 +38,8 @@ def heuristic(heuristic_type, block_positions, storage_positions, moveable_squar
 def manhattan_distance(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1]-pos2[1])
 
-def maze_search(pos1, pos2, matrix):
-    return maze_search_tree(pos1,pos2,matrix).d
+def maze_search(pos1, pos2, max_distance, matrix):
+    return maze_search_tree(pos1,pos2,max_distance,matrix).d
 
 def path(pos1, pos2, max_distance, matrix):
     currentNode = maze_search_tree(pos1,pos2, max_distance, matrix).solution
@@ -48,7 +47,7 @@ def path(pos1, pos2, max_distance, matrix):
     for i in range(1,currentNode.depth+1):
         output[-i] = currentNode.pos
         currentNode = currentNode.parent
-    print(output)
+    #print(output)
     return output
         
     
@@ -73,7 +72,6 @@ class maze_search_tree:
         while not self.frontier.empty():
             expanding = self.frontier.get()
             pos = expanding.pos
-            print(pos)
             
             #down
             down_pos = pos[0]+1,pos[1]
@@ -123,6 +121,7 @@ class maze_search_tree:
                 
             if expanding.depth > max_distance:
                 return None
+            
         return None
     
     def maze_distance(self):

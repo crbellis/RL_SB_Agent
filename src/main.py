@@ -27,8 +27,10 @@ def main():
 	moves = []
 	# path_finder.path([0,0], [5, 5], 10, e.board)
 	# e.pretty_print()
-	e.get_states([e.boxes[0]])
-
+	# for box in e.boxes:
+	# 	# e.get_states(box)
+	# 	print(e.parseActions(box))
+	print(e.get_states())
 	while move != "q" and not e.terminal():
 		e.pretty_print()
 		print(e.parseActions())
@@ -43,7 +45,6 @@ def main():
 	else:
 		print("you quit")
 
-# TODO: bug with input shapes on some training samples and optimizations
 def train(replay, model, target_model, done):
 	"""
 	Trains model. Based on Minibatch Deep Q-Learning. 
@@ -184,6 +185,7 @@ def model_test():
 			e.pretty_print()
 		rewards.append(total_R)
 		epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-decay * epoch)
+
 	plt.plot(range(1, epochs+1), rewards)
 	plt.xlabel("Epoch")
 	plt.ylabel("Reward")
@@ -192,5 +194,5 @@ def model_test():
 
 
 if __name__ == "__main__":
-	# main()
-	model_test()
+	main()
+	# model_test()

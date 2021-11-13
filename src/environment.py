@@ -160,6 +160,7 @@ class Environment:
 	def terminal(self) -> bool:
 		return all(coords in self.boxes for coords in self.storage)
 
+	# TODO: edit block movement rewards to use heuristic from path_finder
 	def move(self, move: str=None) -> tuple[int, bool]:
 		"""
 		Moves the players coordinates in a given direction
@@ -202,7 +203,8 @@ class Environment:
 
 				# check if box is valid detection
 				if self.boxDetection(boxCoords, bIdx, move):
-					reward = 100
+					# reward = 100 
+					reward = 0
 					# update current player location to empty space
 					if boxCoords in self.storage:
 						reward = 1000
@@ -287,34 +289,50 @@ class Environment:
 		return np.array(self.board, dtype="int32")
 	
 	# TODO: if reachable return possible states
-	def get_states(self, box) -> list:
+	def get_states(self) -> list:
 		"""
 		Returns all possible box states from current state based on reachable
 		paths
 		"""
-
 		# convert state to boolean format for path finder
 		bool_state = np.where(self.board == b'4', False, True)
-		# NOT WORKING
-		path_to_box = path(self.player, box, 1000, bool_state)
-		print(path_to_box)
-		states = []
-		box_pos = []
-		actions = self.parseActions(box)
-		for action in actions:
-			tempBox = box.copy()
-			if action in ("u", "d"):
-				tempBox[1] += self.movements[action]
-			else:
-				tempBox[0] += self.movements[action]
-			box_pos.append(tempBox)
+		# TODO: not working errors on accessing solution member
+		actions = []
+		for box in self.boxes:
+			try:
+				path_to_box = path(
+					(self.player[1]-1, self.player[0]-1), 
+					(box[1]-1, box[0]-1), 
+					100, 
+					bool_state
+				)
+				if path_to_box != None:
+					validActions = self.parseActions(box)
+					actions.append(validActions)
+			except:
+				pass
+		return actions
 
-		for pos in box_pos:
-			state = np.copy(self.board)
-			state[box[1]-1][box[0]-1] = EMPTY # clearing box from state
-			state[pos[1]-1][pos[0]-1] = BOXES
-			states.append(state)
-		return states
+
+
+		# print("PATH: ", path_to_box)
+		# states = []
+		# box_pos = []
+		# actions = self.parseActions(box)
+		# for action in actions:
+		# 	tempBox = box.copy()
+		# 	if action in ("u", "d"):
+		# 		tempBox[1] += self.movements[action]
+		# 	else:
+		# 		tempBox[0] += self.movements[action]
+		# 	box_pos.append(tempBox)
+
+		# for pos in box_pos:
+		# 	state = np.copy(self.board)
+		# 	state[box[1]-1][box[0]-1] = EMPTY # clearing box from state
+		# 	state[pos[1]-1][pos[0]-1] = BOXES
+		# 	states.append(state)
+		# return states
 			
 
 		
