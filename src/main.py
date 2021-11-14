@@ -19,7 +19,7 @@ def main():
 	line3 = number of storage locations and coordinates
 	line4 = player's starting coordinates =
 	"""
-	file = "./input/sokoban00.txt"
+	file = "./input/sokoban01.txt"
 	e = Environment()
 	e.read_file(file)
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
@@ -199,5 +199,5 @@ def model_test():
 	plt.show()
 
 if __name__ == "__main__":
-	# main()
-	model_test()
+	main()
+	# model_test()

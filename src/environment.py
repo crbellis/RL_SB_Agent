@@ -163,7 +163,7 @@ class Environment:
 		return all(coords in self.boxes for coords in self.storage)
 
 	# TODO: edit block movement rewards to use heuristic from path_finder
-	def move(self, move: str=None) -> tuple[int, bool]:
+	def move(self, move: str=None, coords: list = None) -> tuple[int, bool]:
 		"""
 		Moves the players coordinates in a given direction
 
@@ -181,7 +181,11 @@ class Environment:
 		assert move in ("u", "l", "r", "d")
 
 		# get new coords
-		newCoords = self.player.copy()
+		newCoords = []
+		if coords == None:
+			newCoords = self.player.copy()
+		else:
+			newCoords = coords
 		# 0 for row and 1 for col
 		row_or_col = 0
 		if move in ("u", "d"):
