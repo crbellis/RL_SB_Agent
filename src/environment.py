@@ -34,6 +34,7 @@ class Environment:
 		self.board = np.array([], dtype="bytes")
 		self.totalReward = 0
 
+
 	# initialize environment from file
 	def read_file(self, path: str = "") -> None:
 		"""
@@ -68,7 +69,8 @@ class Environment:
 					self.storage = self.zip_coords(data[1:])
 				# start coords
 				else:
-					self.player = data
+					self.player = [data[0]-1, data[1]-1]
+
 				lineNum += 1
 
 			# initializing empty board
@@ -79,7 +81,7 @@ class Environment:
 			self.plot(self.walls, WALLS)
 			self.plot(self.boxes, BOXES)
 			self.plot(self.storage, STORAGE)
-			self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+			self.board[self.player[1]][self.player[0]] = PLAYER
 			self.board = np.array(self.board, dtype="bytes")
 
 		except Exception as e:
@@ -238,7 +240,7 @@ class Environment:
 		-------
 		coordinates: list - list of coordinates e.g. [[x1, y1], [x2, y2]...]
 		"""
-		return [[x, y] for x, y in zip(values[1::2], values[::2])]
+		return [[x-1, y-1] for x, y in zip(values[1::2], values[::2])]
 		
 	def plot(self, coords: list, symbol: str or int) -> None:
 		"""
@@ -253,7 +255,7 @@ class Environment:
 		# coord[0] -> column (x) hence backwards indexing
 		# -1 since 0 indexed and coords are cartesian
 		for coord in coords:
-			self.board[coord[1]-1][coord[0]-1] = symbol
+			self.board[coord[1]][coord[0]] = symbol
 	
 	def pretty_print(self) -> None:
 		"""
@@ -263,16 +265,16 @@ class Environment:
 		_row = _column = 0
 		for row in self.board:
 			for column in row:
-				if [_column+1, _row+1] in self.walls:
+				if [_column, _row] in self.walls:
 					print("#", end="")
-				elif [_column+1, _row+1] == self.player:
+				elif [_column, _row] == self.player:
 					print("@", end="")
-				elif ([_column+1, _row+1] in self.boxes 
-					and [_column+1, _row+1] in self.storage):
+				elif ([_column, _row] in self.boxes 
+					and [_column, _row] in self.storage):
 					print("*", end="")
-				elif [_column+1, _row+1] in self.boxes:
+				elif [_column, _row] in self.boxes:
 					print("$", end="")
-				elif [_column+1, _row+1] in self.storage:
+				elif [_column, _row] in self.storage:
 					print(".", end="")
 				else:
 					print("0", end="")
@@ -288,15 +290,19 @@ class Environment:
 		"""
 		return np.array(self.board, dtype="int32")
 	
-	# TODO: if reachable return possible states
-	def get_states(self) -> list:
+	# TODO: update return to data structure below
+	# TODO: extend moves function to take these objects as argument and make a move
+	# Create an undo function that can take a coordinate and action
+	# pass same x, y and a allow it to undo
+
+	# [[(x, y), a].... [(x, y), a]]
+	def get_moves(self) -> list:
 		"""
 		Returns all possible box states from current state based on reachable
 		paths
 		"""
 		# convert state to boolean format for path finder
 		bool_state = np.where(self.board == b'4', False, True)
-		# TODO: not working errors on accessing solution member
 		actions = []
 		for box in self.boxes:
 			try:
@@ -312,9 +318,6 @@ class Environment:
 			except:
 				pass
 		return actions
-
-
-
 		# print("PATH: ", path_to_box)
 		# states = []
 		# box_pos = []
@@ -333,16 +336,6 @@ class Environment:
 		# 	state[pos[1]-1][pos[0]-1] = BOXES
 		# 	states.append(state)
 		# return states
-			
 
-		
-
-
-
-				
-				
-				
-			
-
-
-
+	def undo(self):
+		pass

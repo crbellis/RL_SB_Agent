@@ -19,18 +19,23 @@ def main():
 	line3 = number of storage locations and coordinates
 	line4 = player's starting coordinates =
 	"""
-	file = "./input/sokoban01.txt"
+	file = "./input/sokoban00.txt"
 	e = Environment()
 	e.read_file(file)
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
 	move = ""
 	moves = []
+
+	# test = heuristic("m", [[box[0]-1, box[1]] for box in e.boxes], [[stor[0]-1, stor[1]-1] for stor in e.storage])
+	# print(test)
+
 	# path_finder.path([0,0], [5, 5], 10, e.board)
 	# e.pretty_print()
 	# for box in e.boxes:
 	# 	# e.get_states(box)
-	# 	print(e.parseActions(box))
-	print(e.get_states())
+	# 	print(e.parseActions(box)
+
+	print(e.board)
 	while move != "q" and not e.terminal():
 		e.pretty_print()
 		print(e.parseActions())
@@ -128,8 +133,9 @@ def model_test():
 	# training variables
 	steps_to_update_t_m = 0
 	rewards = []
-	epochs = 15
+	epochs = 10
 	for epoch in range(epochs):
+		moves = []
 		total_R = 0
 		done = False
 		step = 0
@@ -137,9 +143,7 @@ def model_test():
 		# reset from file
 		e.read_file(file)
 
-		# print(f"Training: EPOCH: {epoch}, TOTAL REWARD: {total_R}")
 		for i in range(350):
-			# print("TOTAL REWARD: ", total_R)
 			int_env = e.to_int()
 			mean = int_env.mean()
 			std = int_env.std()
@@ -162,6 +166,7 @@ def model_test():
 				action = np.argmax(predicted)
 			prev_state = deepcopy(state)
 			reward, done = e.move(action_set[action])	
+			moves.append(action_set[action])
 
 			# experience replay - used to store previous game states
 			replay_buffer.append([prev_state, action_set[action], reward, state, done])
@@ -173,7 +178,9 @@ def model_test():
 			total_R += reward
 
 			if done:
-				print("TOTAL TRAINING REWARDS: ", total_R)
+				# print("TOTAL TRAINING REWARDS: ", total_R)
+				print(moves)
+				break
 			
 			# update target model weights every 100 steps
 			if steps_to_update_t_m >= 100:
@@ -191,8 +198,6 @@ def model_test():
 	plt.ylabel("Reward")
 	plt.show()
 
-
-
 if __name__ == "__main__":
-	main()
-	# model_test()
+	# main()
+	model_test()
