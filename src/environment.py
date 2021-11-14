@@ -17,6 +17,9 @@ class Environment:
 	):
 		"""
 		Constructor for Environment class
+		coordinates are stored as [x, y] or [col, row]
+		input is: N row1 col1... rowN colN
+		0, 0 is top left of matrix
 		"""
 		# hash for all movements and corresponding change in position
 		self.movements = {"u": -1, "d": 1, "r": 1, "l": -1}
@@ -33,6 +36,8 @@ class Environment:
 		# entire board state representation 2x2 list of size height x width
 		self.board = np.array([], dtype="bytes")
 		self.totalReward = 0
+		# used for undo
+		self.movedBox = False
 
 
 	# initialize environment from file
@@ -176,6 +181,7 @@ class Environment:
 
 		Updates the player data member in [x, y] format
 		"""
+		self.movedBox = False
 		reward = -1
 		# check if move is in allowed moves
 		assert move in ("u", "l", "r", "d")
@@ -211,6 +217,7 @@ class Environment:
 				if self.boxDetection(boxCoords, bIdx, move):
 					# reward = 100 
 					reward = 0
+					self.movedBox = True
 					# update current player location to empty space
 					if boxCoords in self.storage:
 						reward = 1000
@@ -244,6 +251,8 @@ class Environment:
 		-------
 		coordinates: list - list of coordinates e.g. [[x1, y1], [x2, y2]...]
 		"""
+		# col or x is second value in list, hence starting at 1
+		# 0 indexing so subtracting 1 from the value
 		return [[x-1, y-1] for x, y in zip(values[1::2], values[::2])]
 		
 	def plot(self, coords: list, symbol: str or int) -> None:
@@ -257,7 +266,6 @@ class Environment:
 		"""
 		# coord[1] -> row (y)
 		# coord[0] -> column (x) hence backwards indexing
-		# -1 since 0 indexed and coords are cartesian
 		for coord in coords:
 			self.board[coord[1]][coord[0]] = symbol
 	
@@ -294,16 +302,13 @@ class Environment:
 		"""
 		return np.array(self.board, dtype="int32")
 	
-	# TODO: update return to data structure below
-	# TODO: extend moves function to take these objects as argument and make a move
-	# Create an undo function that can take a coordinate and action
-	# pass same x, y and a allow it to undo
-
-	# [[(x, y), a].... [(x, y), a]]
-	def get_moves(self) -> list:
+	def get_moves(self) -> list[list[list[int, int], move: str]]:
 		"""
 		Returns all possible box states from current state based on reachable
 		paths
+
+		Coords are in [x, y] format 0 indexed where 0,0 is top left of matrix
+		returns: [[[x, y], a].... [[x, y], a]]
 		"""
 		# convert state to boolean format for path finder
 		bool_state = np.where(self.board == b'4', False, True)
@@ -311,35 +316,47 @@ class Environment:
 		for box in self.boxes:
 			try:
 				path_to_box = path(
-					(self.player[1]-1, self.player[0]-1), 
-					(box[1]-1, box[0]-1), 
+					(self.player[0], self.player[1]), 
+					(box[0], box[1]), 
 					100, 
 					bool_state
 				)
 				if path_to_box != None:
 					validActions = self.parseActions(box)
-					actions.append(validActions)
+					actions.extend([[box, action] for action in validActions])
 			except:
 				pass
 		return actions
-		# print("PATH: ", path_to_box)
-		# states = []
-		# box_pos = []
-		# actions = self.parseActions(box)
-		# for action in actions:
-		# 	tempBox = box.copy()
-		# 	if action in ("u", "d"):
-		# 		tempBox[1] += self.movements[action]
-		# 	else:
-		# 		tempBox[0] += self.movements[action]
-		# 	box_pos.append(tempBox)
 
-		# for pos in box_pos:
-		# 	state = np.copy(self.board)
-		# 	state[box[1]-1][box[0]-1] = EMPTY # clearing box from state
-		# 	state[pos[1]-1][pos[0]-1] = BOXES
-		# 	states.append(state)
-		# return states
+	def undo(self, movement: list[list[int, int], move: str]) -> None:
+		"""
+		This function undos a movement which is passed as an argument.
+		The expected input is the previous coordinate along with the action 
+		taken. This happens in-place on the current instantiated board.
 
-	def undo(self):
-		pass
+		i.e. if the player was in [2, 3] and moved up to [2, 2] then this 
+		function will move the player back down to [2, 3]. If a box was pushed 
+		when moving, the box will be reset as well
+
+		Parameters
+		----------
+		movement - list of coordinates [x, y] (0 indexed) and move: 
+		str "u" | "d" | "l" | "r"
+		"""
+		action = movement[1]
+		prevPos = movement[0]
+		currentPos = prevPos
+		actionValue = self.movements[action]
+		tempBox = []
+		print(movement)
+		if action in ("u", "d"):
+			currentPos = [currentPos[0], currentPos[1]+actionValue]
+			tempBox = [currentPos[0], currentPos[1]+actionValue]
+		else:
+			currentPos = [currentPos[0]+actionValue, currentPos[1]]
+			tempBox = [currentPos[0]+actionValue, currentPos[1]]
+		if self.movedBox:
+			index = self.boxes.index(tempBox)
+			self.boxes[index] = currentPos 
+		self.player = prevPos
+		

@@ -35,15 +35,20 @@ def main():
 	# 	# e.get_states(box)
 	# 	print(e.parseActions(box)
 
-	print(e.board)
+	print(e.get_moves())
+	prevCoords = []
 	while move != "q" and not e.terminal():
 		e.pretty_print()
 		print(e.parseActions())
 		move = input("Enter move (q to quit): ").lower()
 		if move in moveMap.keys():
+			prevCoords = e.player
 			moves.append(move)
 			reward = e.move(moveMap[move])
 			print("REWARD: ", reward)
+		elif move == "z":
+			# [x, y]
+			e.undo([prevCoords, moveMap[moves[-1]]])
 	if e.terminal():
 		e.pretty_print()
 		print("You won! Here were your moves: ", moves)
