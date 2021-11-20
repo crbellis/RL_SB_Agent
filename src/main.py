@@ -1,5 +1,5 @@
 from collections import deque
-
+import time
 from environment import Environment
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,8 +35,8 @@ def main():
 	# 	# e.get_states(box)
 	# 	print(e.parseActions(box)
 
-	print(e.get_moves())
 	prevCoords = []
+	print(e.get_moves())
 	while move != "q" and not e.terminal():
 		e.pretty_print()
 		print(e.parseActions())
@@ -112,6 +112,7 @@ def model_test():
 	Output of the models is a 4 element array - a Q-value for each of the
 	possible actions. The best action is the one with the highest Q-value
 	"""
+	start = time.time()
 	action_set = {0: "u", 1: "r", 2: "d", 3:'l'}
 	action_idx = {"u":0, "r": 1, "d": 2, "l": 3}
 	epsilon = 1 # Epsilon-greedy algorithm, initialized to 1 so every step is random to begin with 
@@ -138,7 +139,7 @@ def model_test():
 	# training variables
 	steps_to_update_t_m = 0
 	rewards = []
-	epochs = 10
+	epochs = 20
 	for epoch in range(epochs):
 		moves = []
 		total_R = 0
@@ -167,10 +168,13 @@ def model_test():
 				action = np.random.choice(valid_idx)
 			else:
 				# get Q-values and action of value with highest Q-value
-				predicted = model.predict([state]).flatten()
+				# state = state[None,:, :]
+				predicted = model.predict(state).flatten()
+				# print(predicted.flatten)
 				action = np.argmax(predicted)
 			prev_state = deepcopy(state)
 			reward, done = e.move(action_set[action])	
+
 			moves.append(action_set[action])
 
 			# experience replay - used to store previous game states
@@ -197,7 +201,8 @@ def model_test():
 			e.pretty_print()
 		rewards.append(total_R)
 		epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-decay * epoch)
-
+	end = time.time()
+	print("MINUTES TO RUN: ", (end - start)/60)
 	plt.plot(range(1, epochs+1), rewards)
 	plt.xlabel("Epoch")
 	plt.ylabel("Reward")
@@ -205,4 +210,4 @@ def model_test():
 
 if __name__ == "__main__":
 	main()
-	# model_test()
+	#model_test()

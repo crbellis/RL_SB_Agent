@@ -166,6 +166,20 @@ class Environment:
 
 	def terminal(self) -> bool:
 		return all(coords in self.boxes for coords in self.storage)
+	
+	def distance(self, coord1, coord2):
+		return ((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)**0.5
+		
+
+	def find_nearest_storage(self, box) -> list:
+		coords = []
+		minDistance = float("inf")
+		for storage in self.storage:
+		   dist = self.distance(box, storage)
+		   if dist < minDistance:
+			   minDistance = dist
+			   coords = storage
+		return coords
 
 	# TODO: edit block movement rewards to use heuristic from path_finder
 	def move(self, move: str=None, coords: list = None) -> tuple[int, bool]:
@@ -215,12 +229,13 @@ class Environment:
 
 				# check if box is valid detection
 				if self.boxDetection(boxCoords, bIdx, move):
+					closestStr = self.find_nearest_storage(boxCoords)
 					# reward = 100 
-					reward = 0
+					reward = 50 / max(self.distance(boxCoords, closestStr), 1)
 					self.movedBox = True
 					# update current player location to empty space
 					if boxCoords in self.storage:
-						reward = 1000
+						reward = 100
 				else:
 					return reward, False
 
@@ -236,7 +251,7 @@ class Environment:
 
 		self.totalReward += reward
 		if self.terminal():
-			return reward, True
+			return reward + 1000, True
 		return reward, False
 
 	def zip_coords(self, values: list) -> list:
@@ -302,6 +317,9 @@ class Environment:
 		"""
 		return np.array(self.board, dtype="int32")
 	
+	# TODO: all the possible movements that a player can push
+	# check which sides of the block a player can walk to and then infer which
+	# actions a player can make
 	def get_moves(self) -> list[list[list[int, int], move: str]]:
 		"""
 		Returns all possible box states from current state based on reachable
@@ -312,9 +330,11 @@ class Environment:
 		"""
 		# convert state to boolean format for path finder
 		bool_state = np.where(self.board == b'4', False, True)
+		inverseLoc = {"l": "r", "r": "l", "u": "d", "d": "u"}
 		actions = []
 		for box in self.boxes:
 			try:
+				# get ways box can move
 				path_to_box = path(
 					(self.player[0], self.player[1]), 
 					(box[0], box[1]), 
@@ -323,7 +343,20 @@ class Environment:
 				)
 				if path_to_box != None:
 					validActions = self.parseActions(box)
-					actions.extend([[box, action] for action in validActions])
+					# loop through valid actions
+					for action in validActions:
+						# set the coordinates to current box
+						coord = box
+
+						# get the inverse location i.e. if moving up need to be able to access down location
+						inverse = inverseLoc[action]
+						if action in ("d", "u"):
+							coord = [coord[0], coord[1] + self.movements[inverse]]
+						else:
+							coord = [coord[0]+self.movements[inverse], coord[1]]
+
+						if coord not in self.walls:
+							actions.extend([box, action])
 			except:
 				pass
 		return actions
