@@ -13,7 +13,7 @@ class Environment:
 	def __init__(
 		self, height: int = 0, width: int = 0, walls: list = [], 
 		boxes: list = [],storage: list = [], nWalls: int = 0, nStorage: int = 0, 
-		nBoxes: int = 0, player: list = []
+		nBoxes: int = 0, player: list = [], board: list = []
 	):
 		"""
 		Constructor for Environment class
@@ -34,7 +34,15 @@ class Environment:
 		self.nBoxes = nBoxes
 		self.player = player
 		# entire board state representation 2x2 list of size height x width
-		self.board = np.array([], dtype="bytes")
+		if board:
+			print(board)
+			self.board = np.array(board, dtype="bytes")
+			self.player = list(zip(*np.where(board == b'1')))
+			self.storage = list(zip(*np.where(board == b'2')))
+			self.boxes = list(zip(*np.where(board == b'3')))
+			self.walls = list(zip(*np.where(self.board == b'4')))
+		else:
+			self.board = np.array([], dtype="bytes")
 		self.totalReward = 0
 		# used for undo
 		self.movedBox = False
@@ -158,7 +166,7 @@ class Environment:
 				value = IN_STORAGE
 
 			# update board with new value	
-			self.board[newBox[1]-1][newBox[0]-1] = value
+			self.board[newBox[1]][newBox[0]] = value
 			# update boxes at boxIdx with new box coords
 			self.boxes[boxIdx] = newBox
 			return True
@@ -175,10 +183,21 @@ class Environment:
 		coords = []
 		minDistance = float("inf")
 		for storage in self.storage:
-		   dist = self.distance(box, storage)
-		   if dist < minDistance:
-			   minDistance = dist
-			   coords = storage
+			dist = self.distance(box, storage)
+			if dist < minDistance:
+				if storage not in self.boxes:
+					minDistance = dist
+				coords = storage
+		return coords
+
+	def find_nearest_box(self) -> list:
+		coords = []
+		minDist = float("inf")
+		for box in self.boxes:
+			dist = self.distance(self.player, box)
+			if dist < minDist and box not in self.storage:
+				minDist = dist
+				coords = box
 		return coords
 
 	# TODO: edit block movement rewards to use heuristic from path_finder
@@ -195,6 +214,8 @@ class Environment:
 
 		Updates the player data member in [x, y] format
 		"""
+
+		deadLocked = False
 		self.movedBox = False
 		reward = -1
 		# check if move is in allowed moves
@@ -206,12 +227,18 @@ class Environment:
 			newCoords = self.player.copy()
 		else:
 			newCoords = coords
-		# 0 for row and 1 for col
+		# 0 for col and 1 for row
 		row_or_col = 0
 		if move in ("u", "d"):
 			row_or_col = 1
-
+		
+		nearestBox = self.find_nearest_box()
+		current_distance = self.distance(self.player, nearestBox)
 		newCoords[row_or_col] += self.movements[move]
+		new_distance = self.distance(newCoords, nearestBox)
+		
+		if new_distance < current_distance:
+			reward = 0
 
 		# check if move isValid
 		if self.isValid(newCoords, move):
@@ -231,28 +258,52 @@ class Environment:
 				if self.boxDetection(boxCoords, bIdx, move):
 					closestStr = self.find_nearest_storage(boxCoords)
 					# reward = 100 
-					reward = 50 / max(self.distance(boxCoords, closestStr), 1)
+					dist_from_new_box_coords = self.distance(boxCoords, closestStr)
+					dist_from_old_box_coords = self.distance(newCoords, closestStr)
+					if (dist_from_new_box_coords < dist_from_old_box_coords + 1):
+						reward = 5 / max(self.distance(boxCoords, closestStr), 1)
+					
 					self.movedBox = True
 					# update current player location to empty space
 					if boxCoords in self.storage:
-						reward = 100
+						boxes = np.array(self.boxes)
+						storage = np.array(self.storage)
+						nrows, ncols = boxes.shape
+						dtype={'names':['f{}'.format(i) for i in range(ncols)],
+       						'formats':ncols * [boxes.dtype]}
+						reward = 100 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
+					else:
+						# check for naive deadlocks
+						if (([boxCoords[0]+1, boxCoords[1]] in self.walls 
+							or [boxCoords[0]-1, boxCoords[1]] in self.walls) 
+							and ([boxCoords[0], boxCoords[1]+1] in self.walls 
+							or [boxCoords[0], boxCoords[1]-1] in self.walls)):
+								reward = -100
+								deadLocked = True
+
+						if (([boxCoords[0]-1, boxCoords[1]] in self.walls 
+							or [boxCoords[0]+1, boxCoords[1]] in self.walls)  
+							and ([boxCoords[0], boxCoords[1]+1] in self.walls 
+							or [boxCoords[0], boxCoords[1]-1] in self.walls)):
+								reward =  -100
+								deadLocked = True	
 				else:
 					return reward, False
-
+					
 			if self.player in self.storage:
 				oldState = STORAGE
 
-			self.board[self.player[1]-1][self.player[0]-1] = oldState
+			self.board[self.player[1]][self.player[0]] = oldState
 
 			# update player coords
 			self.player = newCoords
 			# update board with new player location
-			self.board[self.player[1]-1][self.player[0]-1] = PLAYER
+			self.board[self.player[1]][self.player[0]] = PLAYER
 
 		self.totalReward += reward
 		if self.terminal():
-			return reward + 1000, True
-		return reward, False
+			return reward + 100, True
+		return reward, False or deadLocked
 
 	def zip_coords(self, values: list) -> list:
 		"""
@@ -315,7 +366,7 @@ class Environment:
 		"""
 		Converts state to int based numpy array
 		"""
-		return np.array(self.board, dtype="int32")
+		return np.array(self.board, dtype="float32")
 	
 	# TODO: all the possible movements that a player can push
 	# check which sides of the block a player can walk to and then infer which
