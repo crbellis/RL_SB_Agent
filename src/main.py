@@ -285,7 +285,7 @@ def model_test():
 		loss = []
 		avg_loss = []
 		isTerminal = False
-		while(not isTerminal and epochs < 300):
+		while(not isTerminal and epochs < 1000):
 			epochs += 1
 			moves = []
 			total_R = 0
@@ -371,34 +371,6 @@ def model_test():
 				print(e.to_int())
 				break
 			
-		
-		# end = time.time()
-
-		# if len(rewards) < epochs:
-		# 	for i in range(len(rewards), epochs):
-		# 		rewards.append(0)
-
-		# print("MINUTES TO RUN: ", (end - start)/60)
-		# plt.plot(range(1, epochs+1), rewards)
-		# plt.xlabel("Epoch")
-		# plt.ylabel("Reward")
-		# plt.show()
-		
-		# if len(avg_loss) > 0:
-		# 	plt.clf()
-		# 	plt.plot(range(1, len(avg_loss)+1), avg_loss)
-		# 	plt.xlabel("Epoch")
-		# 	plt.ylabel("Average Loss")
-		# 	plt.title("Avg. Loss per Epoch")
-		# 	plt.show()
-
-		# 	plt.clf()
-		# 	plt.plot(range(1, len(avg_acc)+1), avg_acc)
-		# 	plt.xlabel("Epoch")
-		# 	plt.ylabel("Average Accuracy")
-		# 	plt.show()
-		
-
 	except KeyboardInterrupt:
 		print("interupted")
 
@@ -412,7 +384,7 @@ def model_test():
 	plt.plot(range(1, epochs+1), rewards)
 	plt.xlabel("Epoch")
 	plt.ylabel("Reward")
-	plt.show()
+	# plt.show()
 	
 	if len(avg_loss) > 0:
 		plt.clf()
@@ -420,16 +392,21 @@ def model_test():
 		plt.xlabel("Epoch")
 		plt.ylabel("Average Loss")
 		plt.title("Avg. Loss per Epoch")
-		plt.show()
+		# plt.show()
 
 		plt.clf()
 		plt.plot(range(1, len(avg_acc)+1), avg_acc)
 		plt.xlabel("Epoch")
 		plt.ylabel("Average Accuracy")
-		plt.show()
-	inspect(model, target_model)	
+		# plt.show()
+	plt.clf()
+	# inspect(model, target_model)	
+	return (end-start)/60
 
 
 if __name__ == "__main__":
 	# main()
-	model_test()
+	times = []
+	for i in range(5):
+		times.append(model_test())
+	print("AVG TIME TO SOLVE: ", sum(times)/5)
