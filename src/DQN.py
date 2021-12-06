@@ -11,9 +11,9 @@ def agent(state_shape, action_shape):
 	# tf.keras.initializers.HeUniform()
 	model = tf.keras.models.Sequential()
 	model.add(tf.keras.layers.Dense(64, input_shape=state_shape, activation='relu', kernel_initializer=init))
-	model.add(tf.keras.layers.Dense(256, activation='relu', kernel_initializer=init))
+	# model.add(tf.keras.layers.Dense(256, activation='relu', kernel_initializer=init))
 	model.add(tf.keras.layers.Dense(32, activation='relu', kernel_initializer=init))
 	model.add(tf.keras.layers.Dense(action_shape, activation='linear', kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03)))
 	# model.compile(loss=tf.keras.losses.Huber(), optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), metrics=['accuracy'])
-	model.compile(loss="huber", optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), metrics=['accuracy'])
+	model.compile(loss="huber", optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy'])
 	return model

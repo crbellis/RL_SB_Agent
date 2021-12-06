@@ -1,3 +1,5 @@
+from re import I
+from matplotlib.pyplot import box
 import numpy as np
 from path_finder import path
 
@@ -7,6 +9,7 @@ STORAGE = 2 #"."
 BOXES = 3 #"$"
 WALLS = 4 #"#"
 IN_STORAGE = 5 #"*"
+PLAYER_IN_STORAGE = 6 #"+"
 
 class Environment:
 	# Environment constructor
@@ -22,7 +25,7 @@ class Environment:
 		0, 0 is top left of matrix
 		"""
 		# hash for all movements and corresponding change in position
-		self.movements = {"u": -1, "d": 1, "r": 1, "l": -1}
+		self.movements = {"u": -1, "r": 1,"d": 1, "l": -1}
 		# data from input
 		self.height = height
 		self.width = width
@@ -34,13 +37,17 @@ class Environment:
 		self.nBoxes = nBoxes
 		self.player = player
 		# entire board state representation 2x2 list of size height x width
-		if board:
-			print(board)
+		if len(board) > 0:
 			self.board = np.array(board, dtype="bytes")
-			self.player = list(zip(*np.where(board == b'1')))
-			self.storage = list(zip(*np.where(board == b'2')))
-			self.boxes = list(zip(*np.where(board == b'3')))
-			self.walls = list(zip(*np.where(self.board == b'4')))
+			self.player = np.argwhere(self.board == b'1').tolist()
+			if len(self.player) == 0:
+				self.player = np.argwhere(self.board == b'6').tolist()[0]
+			else:
+				self.player = self.player[0]
+			self.player = [self.player[1], self.player[0]]
+			self.storage = [[col, row] for row, col in np.argwhere(self.board == b'2').tolist()]
+			self.boxes = [[col, row] for row, col in np.argwhere(self.board == b'3').tolist()]
+			self.walls = [[col, row] for row, col in np.argwhere(self.board == b'4').tolist()]
 		else:
 			self.board = np.array([], dtype="bytes")
 		self.totalReward = 0
@@ -82,7 +89,7 @@ class Environment:
 					self.storage = self.zip_coords(data[1:])
 				# start coords
 				else:
-					self.player = [data[0]-1, data[1]-1]
+					self.player = [data[1]-1, data[0]-1]
 
 				lineNum += 1
 
@@ -99,7 +106,6 @@ class Environment:
 
 		except Exception as e:
 			print(e)
-
 
 	def isValid(self, coords, move) -> bool:
 		"""
@@ -144,14 +150,25 @@ class Environment:
 		if object == None:
 			object = self.player
 		validActions = []
+
 		for action in self.movements.keys():
 			coords = []
 			if action in ("u", "d"):
 				coords = [object[0], object[1]+self.movements[action]]
+				newCoords = coords.copy()
+				newCoords[1] += self.movements[action]
 			else:
-				coords =[object[0]+self.movements[action], object[1]] 
+				coords = [object[0]+self.movements[action], object[1]] 
+				newCoords = coords.copy()
+				newCoords[0] += self.movements[action]
+			
 			if self.isValid(coords, action):
+				if coords in self.boxes:
+					if newCoords in self.walls:
+						continue
+
 				validActions.append(action)
+
 		return validActions
 
 	def boxDetection(self, newBox: list, boxIdx: int, move: str) -> bool:
@@ -178,8 +195,18 @@ class Environment:
 	def distance(self, coord1, coord2):
 		return ((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)**0.5
 		
-
 	def find_nearest_storage(self, box) -> list:
+		"""
+		Finds the nearest storage unit
+
+		Parameters
+		----------
+		box - list of col, row
+
+		Returns
+		-------
+		Storage unit nearest the box 
+		"""
 		coords = []
 		minDistance = float("inf")
 		for storage in self.storage:
@@ -191,6 +218,13 @@ class Environment:
 		return coords
 
 	def find_nearest_box(self) -> list:
+		"""
+		Finds nearest box to player
+
+		Returns
+		------
+		list - coordinates for closest box
+		"""
 		coords = []
 		minDist = float("inf")
 		for box in self.boxes:
@@ -199,8 +233,26 @@ class Environment:
 				minDist = dist
 				coords = box
 		return coords
+	
+	def isDeadLocked(self, boxCoords) -> bool:
+		"""
+		Checks if board is in deadlock state
+		"""
+		# check if walls surrounding left or right and top or bottom
+		if (([boxCoords[0]+1, boxCoords[1]] in self.walls 
+		or [boxCoords[0]-1, boxCoords[1]] in self.walls) 
+		and ([boxCoords[0], boxCoords[1]+1] in self.walls 
+		or [boxCoords[0], boxCoords[1]-1] in self.walls)):
+			return True 
 
-	# TODO: edit block movement rewards to use heuristic from path_finder
+		elif (([boxCoords[0]+1, boxCoords[1]] in self.boxes
+		or [boxCoords[0]-1, boxCoords[1]] in self.boxes) 
+		and ([boxCoords[0], boxCoords[1]+1] in self.boxes 
+		or [boxCoords[0], boxCoords[1]-1] in self.boxes)):	
+			return True
+
+		return False
+		
 	def move(self, move: str=None, coords: list = None) -> tuple[int, bool]:
 		"""
 		Moves the players coordinates in a given direction
@@ -261,7 +313,7 @@ class Environment:
 					dist_from_new_box_coords = self.distance(boxCoords, closestStr)
 					dist_from_old_box_coords = self.distance(newCoords, closestStr)
 					if (dist_from_new_box_coords < dist_from_old_box_coords + 1):
-						reward = 5 / max(self.distance(boxCoords, closestStr), 1)
+						reward = 10 / max(self.distance(boxCoords, closestStr), 1)
 					
 					self.movedBox = True
 					# update current player location to empty space
@@ -270,23 +322,13 @@ class Environment:
 						storage = np.array(self.storage)
 						nrows, ncols = boxes.shape
 						dtype={'names':['f{}'.format(i) for i in range(ncols)],
-       						'formats':ncols * [boxes.dtype]}
-						reward = 100 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
+	   						'formats':ncols * [boxes.dtype]}
+						reward = 500 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
 					else:
 						# check for naive deadlocks
-						if (([boxCoords[0]+1, boxCoords[1]] in self.walls 
-							or [boxCoords[0]-1, boxCoords[1]] in self.walls) 
-							and ([boxCoords[0], boxCoords[1]+1] in self.walls 
-							or [boxCoords[0], boxCoords[1]-1] in self.walls)):
-								reward = -100
+						if self.isDeadLocked(boxCoords):
+								reward = -300
 								deadLocked = True
-
-						if (([boxCoords[0]-1, boxCoords[1]] in self.walls 
-							or [boxCoords[0]+1, boxCoords[1]] in self.walls)  
-							and ([boxCoords[0], boxCoords[1]+1] in self.walls 
-							or [boxCoords[0], boxCoords[1]-1] in self.walls)):
-								reward =  -100
-								deadLocked = True	
 				else:
 					return reward, False
 					
@@ -298,11 +340,15 @@ class Environment:
 			# update player coords
 			self.player = newCoords
 			# update board with new player location
-			self.board[self.player[1]][self.player[0]] = PLAYER
+			newState = PLAYER
+			if self.player in self.storage:
+				newState = PLAYER_IN_STORAGE
+
+			self.board[self.player[1]][self.player[0]] = newState
 
 		self.totalReward += reward
 		if self.terminal():
-			return reward + 100, True
+			return reward + 1000, True
 		return reward, False or deadLocked
 
 	def zip_coords(self, values: list) -> list:
@@ -333,7 +379,13 @@ class Environment:
 		# coord[1] -> row (y)
 		# coord[0] -> column (x) hence backwards indexing
 		for coord in coords:
+			if symbol == 2:
+				if coord in self.boxes:
+					self.board[coord[1]][coord[0]] = IN_STORAGE
+					continue
+
 			self.board[coord[1]][coord[0]] = symbol
+		return	
 	
 	def pretty_print(self) -> None:
 		"""
@@ -346,7 +398,10 @@ class Environment:
 				if [_column, _row] in self.walls:
 					print("#", end="")
 				elif [_column, _row] == self.player:
-					print("@", end="")
+					if [_column, _row] in self.storage:
+						print("+", end="")
+					else:
+						print("@", end="")
 				elif ([_column, _row] in self.boxes 
 					and [_column, _row] in self.storage):
 					print("*", end="")
@@ -355,7 +410,7 @@ class Environment:
 				elif [_column, _row] in self.storage:
 					print(".", end="")
 				else:
-					print("0", end="")
+					print(" ", end="")
 				_column += 1
 			print()
 			_row += 1
@@ -366,12 +421,15 @@ class Environment:
 		"""
 		Converts state to int based numpy array
 		"""
+		return np.array(self.board, dtype="int32")
+
+	def to_float(self):
+		"""
+		Converts state to float based numpy array
+		"""
 		return np.array(self.board, dtype="float32")
 	
-	# TODO: all the possible movements that a player can push
-	# check which sides of the block a player can walk to and then infer which
-	# actions a player can make
-	def get_moves(self) -> list[list[list[int, int], move: str]]:
+	def get_moves(self):
 		"""
 		Returns all possible box states from current state based on reachable
 		paths
@@ -387,8 +445,8 @@ class Environment:
 			try:
 				# get ways box can move
 				path_to_box = path(
-					(self.player[0], self.player[1]), 
-					(box[0], box[1]), 
+					(self.player[1], self.player[0]), 
+					(box[1], box[0]), 
 					100, 
 					bool_state
 				)
@@ -398,21 +456,26 @@ class Environment:
 					for action in validActions:
 						# set the coordinates to current box
 						coord = box
+						pushedBox = coord
 
 						# get the inverse location i.e. if moving up need to be able to access down location
 						inverse = inverseLoc[action]
 						if action in ("d", "u"):
+							pushedBox = [coord[0], coord[1] + self.movements[action]]
 							coord = [coord[0], coord[1] + self.movements[inverse]]
 						else:
+							pushedBox = [coord[0]+self.movements[action], coord[1]]
 							coord = [coord[0]+self.movements[inverse], coord[1]]
-
-						if coord not in self.walls:
+						if coord not in self.walls and coord not in self.boxes and pushedBox not in self.boxes:
 							actions.extend([box, action])
 			except:
 				pass
-		return actions
+		output = []
+		for i in range(int(len(actions)/2)):
+			output.append((actions[2*i],actions[2*i+1])) 
+		return output
 
-	def undo(self, movement: list[list[int, int], move: str]) -> None:
+	def undo(self, movement: list) -> None:
 		"""
 		This function undos a movement which is passed as an argument.
 		The expected input is the previous coordinate along with the action 
@@ -444,3 +507,98 @@ class Environment:
 			self.boxes[index] = currentPos 
 		self.player = prevPos
 		
+	def move_block(self, coordinate, direction):
+		old_player_x, old_player_y = self.player[0], self.player[1]
+		old_player_val = self.board[old_player_y, old_player_x]
+		coord = coordinate.copy()
+		index = -1
+		for i in range(len(self.boxes)):
+			if self.boxes[i] == coord:
+				index = i
+		if index == -1:
+			raise("Invalid coord error")
+			return
+		if direction == 'u':
+			self.player = coord
+			self.boxes[index][1]-=1
+		elif direction == 'd':
+			self.player = coord
+			self.boxes[index][1] +=1
+		elif direction == 'l':
+			self.player = coord
+			self.boxes[index][0] -=1
+		elif direction == 'r':
+			self.player = coord
+			self.boxes[index][0] +=1
+		else:
+			print("Invald direction error")
+
+		# updates where the block used to be and where the player currently is
+		if self.player in self.storage:
+			self.board[self.player[1],self.player[0]] = b'6'
+		else:
+			self.board[self.player[1],self.player[0]] = b'1'
+		
+		# updates where the player used to be in self.board
+		if old_player_val == b'1':
+			self.board[old_player_y, old_player_x] = b'0'
+		else:
+			self.board[old_player_y, old_player_x] = b'2'
+		
+		# update where the block is now
+		if self.boxes[index] in self.storage:
+			self.board[self.boxes[index][1], self.boxes[index][0]] = b'5'
+		else:
+			self.board[self.boxes[index][1], self.boxes[index][0]] = b'3'
+		return self.boxes[index]
+	
+	def undo_move_block(self, coord, direction):
+		player_coord = coord.copy()
+		original_coord = coord.copy()
+		undone_coord = coord.copy()
+		if direction == 'u':
+			player_coord[1]+=1
+			undone_coord[1]-=1
+			self.player= player_coord
+		elif direction == 'd':
+			player_coord[1] -=1
+			undone_coord[1] +=1
+			self.player= player_coord
+		elif direction == 'l':
+			player_coord[0] +=1
+			undone_coord[0] -=1
+			self.player= player_coord
+		elif direction == 'r':
+			player_coord[0] -=1
+			undone_coord[0] +=1
+			self.player= player_coord
+		else:
+			print("Invald direction error")
+		index = -1
+		
+		for i in range(len(self.boxes)):
+			if self.boxes[i] == undone_coord:
+				index = i
+		if index == -1:
+			print("Invalid coord error on undo")
+			return
+		self.boxes[index] = original_coord
+		
+		# update the now blank square where the block was, pre undo
+		if undone_coord in self.storage:
+			self.board[undone_coord[1], undone_coord[0]] = b'2'
+		else:
+			self.board[undone_coord[1], undone_coord[0]] = b'0'
+		
+		# updates block position after undo
+		if original_coord in self.storage:
+			self.board[original_coord[1], original_coord[0]] = b'5'
+		else:
+			self.board[original_coord[1], original_coord[0]] = b'3'
+			
+		# update player position after undo
+		if self.player in self.storage:
+			self.board[self.player[1], self.player[0]] = b'6'
+		else:
+			self.board[self.player[1], self.player[0]] = b'1'
+		return

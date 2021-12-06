@@ -3,3 +3,4 @@ src/.DS_Store
 venv
 .DS_Store
 src/train.py
+input_files/
