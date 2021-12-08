@@ -32,10 +32,9 @@ def heuristic(heuristic_type, block_positions, storage_positions, moveable_squar
 	if heuristic_type == 'm':
 		costs = numpy.array([[manhattan_distance(block_positions[i], storage_positions[j]) for i in range(len(block_positions))] for j in range(len(storage_positions))])
 	else:
-		costs = numpy.array([[maze_search(block_positions[i], storage_positions[j]) for i in range(len(block_positions))] for j in range(len(storage_positions))])
-	row_indices, collumn_indices = linear_sum_assignment(costs)
-	costs = numpy.array(costs, "float64")
-	return costs.max() 
+		costs = numpy.array([[maze_search(block_positions[i], storage_positions[j],1000,moveable_squares_matrix) for i in range(len(block_positions))] for j in range(len(storage_positions))])
+	row_indices, column_indices = linear_sum_assignment(costs)  
+	return sum(costs[row_indices[i]][column_indices[i]] for i in range(len(column_indices))) 
 
 def manhattan_distance(pos1, pos2):
 	return abs(pos1[0] - pos2[0]) + abs(pos1[1]-pos2[1])
@@ -51,26 +50,112 @@ def path(pos1, pos2, max_distance, matrix):
 		currentNode = currentNode.parent
 	#print(output)
 	return output
+
+# def walkable_squares:
+# 	
+
+def get_moveable_squares_matrix(board):
+	output = numpy.array(board, dtype=bool)
+	row_index = 0
+	for row in board:
+		col_index = 0
+		for item in row:
+			if item == 4:
+				output[row_index][col_index] = False
+			else:
+				output[row_index][col_index] = True
+			col_index += 1
+		row_index += 1
+	return output
+
+def get_block_positions(board):
+	output = []
+	row_index = 0
+	for row in board:
+		col_index = 0
+		for item in row:
+			if item == 3 or item == 5:
+				output.append((row_index,col_index))
+			col_index += 1
+		row_index += 1
+	return output
+
+def get_storage_positions(board):
+	output = []
+	row_index = 0
+	for row in board:
+		col_index = 0
+		for item in row:
+			if item == 2 or item == 5 or item == 6:
+				output.append((row_index,col_index))
+			col_index += 1
+		row_index += 1
+	return output
 		
-	
-	
+ 	
+
 
 
 # matrix is a matrix of Trues and Falses. Trues are accessible walkways, and Falses are not.
 class maze_search_tree: 
 	def __init__(self, pos1, pos2, max_distance, matrix):
 		self.matrix = numpy.matrix(matrix)
-		self.pos1 = pos1
-		self.pos2 = pos2
+		self.pos1 = pos1[0], pos1[1]
+		self.pos2 = pos2[0], pos2[1]
 		self.root = maze_search_node(pos1, 0, None, [])
 		self.frontier = queue.Queue(len(matrix)*len(matrix[0]))
 		self.frontier.put(self.root)
 		self.solution = self.maze_path(max_distance)
-		self.d = self.solution.depth
+		if pos1 == pos2:
+			self.d = 0
+		else:
+			self.d = self.solution.depth	
+		self.reachable_squares = None
 	
 	
 	def maze_path(self, max_distance):
-		self.matrix[self.pos1] = False
+# 		if self.pos2 == (-1,-1):
+# 			self.reachable_squares = [[False for row in self.matrix] for col in self.matrix]
+# 			self.matrix[self.pos1] = False
+# 			self.reachable_squares[self.pos1] = True
+# 			while not self.frontier.empty():
+# 				expanding = self.frontier.get()
+# 				pos = expanding.pos
+# 				
+# 				#down
+# 				down_pos = pos[0]+1,pos[1]
+# 				if down_pos[0] < len(self.matrix) and self.matrix[down_pos]:
+# 					expanding.children += [maze_search_node(down_pos, expanding.depth + 1, expanding, [])]
+# 					self.matrix[down_pos] = False
+# 					self.reachable_squares[down_pos] = True
+# 					
+# 				#up
+# 				up_pos = pos[0]-1,pos[1]
+# 				if up_pos[0] > 0 and self.matrix[up_pos]:
+# 					expanding.children += [maze_search_node(up_pos, expanding.depth + 1, expanding, [])]
+# 					self.matrix[up_pos] = False 
+# 					self.reachable_squares[up_pos] = True
+# 				
+# 				#left
+# 				left_pos = pos[0],pos[1]-1
+# 				if left_pos[1] > 0 and self.matrix[left_pos]:
+# 					expanding.children += [maze_search_node(left_pos, expanding.depth + 1, expanding, [])]
+# 					self.matrix[left_pos] = False 
+# 					self.reachable_squares[left_pos] = True
+# 				
+# 				#right
+# 				right_pos = pos[0],pos[1]+1
+# 				if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
+# 					expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
+# 					self.matrix[right_pos] = False 
+# 					self.reachable_squares[right_pos] = True
+# 				
+# 				# print(expanding.children)
+# 				for child in expanding.children:
+# 					self.frontier.put(child)
+# 					
+# 				if expanding.depth > max_distance:
+# 					return None
 		while not self.frontier.empty():
 			expanding = self.frontier.get()
 			pos = expanding.pos
@@ -111,8 +196,6 @@ class maze_search_tree:
 				destination_node = maze_search_node(right_pos, expanding.depth + 1, expanding, [])
 				expanding.children += [destination_node]
 				return destination_node
-			if pos == (9,0):
-				print(right_pos, right_pos[1] < len(self.matrix[:,0]), self.matrix[right_pos])
 			if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
 				expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
 				self.matrix[right_pos] = False 
@@ -122,8 +205,8 @@ class maze_search_tree:
 				self.frontier.put(child)
 				
 			if expanding.depth > max_distance:
+				
 				return None
-			
 		return None
 	
 	def maze_distance(self):
@@ -164,8 +247,6 @@ class maze_search_tree:
 			right_pos = pos[0],pos[1]+1
 			if right_pos == self.pos2:
 				return expanding.depth + 1
-			if pos == (9,0):
-				print(right_pos, right_pos[1] < len(self.matrix[:,0]), self.matrix[right_pos])
 			if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
 				expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
 				self.matrix[right_pos] = False 
@@ -186,3 +267,13 @@ class maze_search_node:
 			return True
 		else:
 			return False
+		
+		
+# args = [[[2, 1], [5, 1]], [[1, 1], [5, 1]], [[False, False, False, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, False, False, False]]]
+# print(heuristic('path', args[0], args[1], args[2]))
+
+block_positions = [[0,0]]
+storage_positions = [[0,0]]
+moveable_squares_matrix = numpy.array([[True]])
+
+# print(heuristic('m', block_positions, storage_positions, moveable_squares_matrix))

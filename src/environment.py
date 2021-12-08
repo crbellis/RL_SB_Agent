@@ -1,6 +1,5 @@
-from re import I
-from matplotlib.pyplot import box
 import numpy as np
+import grids
 from path_finder import path
 
 EMPTY = 0
@@ -53,6 +52,8 @@ class Environment:
 		self.totalReward = 0
 		# used for undo
 		self.movedBox = False
+		self.old_moves = len(self.get_moves())
+		self.deadSpaces = None
 
 
 	# initialize environment from file
@@ -103,6 +104,8 @@ class Environment:
 			self.plot(self.storage, STORAGE)
 			self.board[self.player[1]][self.player[0]] = PLAYER
 			self.board = np.array(self.board, dtype="bytes")
+			self.old_moves = len(self.get_moves())
+			
 
 		except Exception as e:
 			print(e)
@@ -161,12 +164,28 @@ class Environment:
 				coords = [object[0]+self.movements[action], object[1]] 
 				newCoords = coords.copy()
 				newCoords[0] += self.movements[action]
-			
+
 			if self.isValid(coords, action):
 				if coords in self.boxes:
 					if newCoords in self.walls:
 						continue
 
+				temp = self.board.copy()	
+				if object in self.storage:
+					temp[object[1]][object[0]] = 2
+				else:
+					temp[object[1]][object[0]] = 0
+
+				temp[coords[1]][coords[0]] = 1
+
+				if coords in self.boxes:
+					if self.deadSpaces and newCoords in self.deadSpaces:
+						continue
+					temp[newCoords[1]][newCoords[0]] = 3
+					deadlock = grids.check_deadlocks(temp) 
+					if deadlock and newCoords not in self.storage:
+						continue
+					
 				validActions.append(action)
 
 		return validActions
@@ -214,7 +233,7 @@ class Environment:
 			if dist < minDistance:
 				if storage not in self.boxes:
 					minDistance = dist
-				coords = storage
+					coords = storage
 		return coords
 
 	def find_nearest_box(self) -> list:
@@ -238,20 +257,40 @@ class Environment:
 		"""
 		Checks if board is in deadlock state
 		"""
-		# check if walls surrounding left or right and top or bottom
-		if (([boxCoords[0]+1, boxCoords[1]] in self.walls 
-		or [boxCoords[0]-1, boxCoords[1]] in self.walls) 
-		and ([boxCoords[0], boxCoords[1]+1] in self.walls 
-		or [boxCoords[0], boxCoords[1]-1] in self.walls)):
-			return True 
+		# #check if walls surrounding left or right and top or bottom
+		# if (([boxCoords[0]+1, boxCoords[1]] in self.walls 
+		# or [boxCoords[0]-1, boxCoords[1]] in self.walls) 
+		# and ([boxCoords[0], boxCoords[1]+1] in self.walls 
+		# or [boxCoords[0], boxCoords[1]-1] in self.walls)):
+		# 	return True 
 
-		elif (([boxCoords[0]+1, boxCoords[1]] in self.boxes
-		or [boxCoords[0]-1, boxCoords[1]] in self.boxes) 
-		and ([boxCoords[0], boxCoords[1]+1] in self.boxes 
-		or [boxCoords[0], boxCoords[1]-1] in self.boxes)):	
-			return True
+		# elif (([boxCoords[0]+1, boxCoords[1]] in self.boxes
+		# or [boxCoords[0]-1, boxCoords[1]] in self.boxes) 
+		# and ([boxCoords[0], boxCoords[1]+1] in self.boxes 
+		# or [boxCoords[0], boxCoords[1]-1] in self.boxes)):	
+		# 	return True
 
-		return False
+		# return False
+		x, y = boxCoords[0], boxCoords[1]
+
+		# change this to check for larger deadlocks in the future
+		left_pad = 2
+		right_pad = 3
+		down_pad = 3
+		up_pad = 2
+
+		if x-2 < 0:
+			left_pad -= 1
+		if x+3 >= len(self.board[1]):
+			right_pad -= 1
+		if y-2 < 0:
+			up_pad -= 1
+		if y+3 >= len(self.board):
+			down_pad -= 1
+
+		arr = self.board[y-up_pad: y+down_pad, x-left_pad: x+right_pad]
+		result = grids.check_deadlocks(arr)
+		return result
 		
 	def move(self, move: str=None, coords: list = None) -> tuple[int, bool]:
 		"""
@@ -284,13 +323,7 @@ class Environment:
 		if move in ("u", "d"):
 			row_or_col = 1
 		
-		nearestBox = self.find_nearest_box()
-		current_distance = self.distance(self.player, nearestBox)
 		newCoords[row_or_col] += self.movements[move]
-		new_distance = self.distance(newCoords, nearestBox)
-		
-		if new_distance < current_distance:
-			reward = 0
 
 		# check if move isValid
 		if self.isValid(newCoords, move):
@@ -309,26 +342,66 @@ class Environment:
 				# check if box is valid detection
 				if self.boxDetection(boxCoords, bIdx, move):
 					closestStr = self.find_nearest_storage(boxCoords)
-					# reward = 100 
-					dist_from_new_box_coords = self.distance(boxCoords, closestStr)
-					dist_from_old_box_coords = self.distance(newCoords, closestStr)
-					if (dist_from_new_box_coords < dist_from_old_box_coords + 1):
-						reward = 10 / max(self.distance(boxCoords, closestStr), 1)
 					
 					self.movedBox = True
 					# update current player location to empty space
+					boxes = np.array(self.boxes)
+					storage = np.array(self.storage)
+					nrows, ncols = boxes.shape
+					dtype={'names':['f{}'.format(i) for i in range(ncols)],
+						'formats':ncols * [boxes.dtype]}
+
 					if boxCoords in self.storage:
-						boxes = np.array(self.boxes)
-						storage = np.array(self.storage)
-						nrows, ncols = boxes.shape
-						dtype={'names':['f{}'.format(i) for i in range(ncols)],
-	   						'formats':ncols * [boxes.dtype]}
-						reward = 500 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
-					else:
-						# check for naive deadlocks
-						if self.isDeadLocked(boxCoords):
-								reward = -300
-								deadLocked = True
+						reward += 500 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
+						# reward += 500 ** len(np.intersect1d(boxes.view(dtype), storage.view(dtype))) 
+					elif newCoords in self.storage and boxCoords not in self.storage:
+						reward += -500 * ((len(np.intersect1d(boxes.view(dtype), storage.view(dtype))) + 1)/len(self.boxes))
+
+					num_moves = len(self.get_moves())
+					reward += (num_moves - self.old_moves) * 0.3
+					reward += 1
+					self.old_moves = num_moves
+						# try:
+						# 	temp = self.board.copy()
+						# 	temp[newCoords[1]][newCoords[0]] = b'1'
+						# 	if self.player in self.storage:
+						# 		temp[self.player[1]][self.player[0]] = STORAGE
+						# 	else:
+						# 		temp[self.player[1]][self.player[0]] = oldState
+						# 	path_to_closest = path(
+						# 		(boxCoords[1], boxCoords[0]),
+						# 		(closestStr[1], closestStr[0]),
+						# 		100,
+						# 		np.where((temp == b'4') | (temp == b'3') | (temp == b'5'), False, True)
+						# 	)
+						# 	temp = temp.copy()
+						# 	temp[boxCoords[1]][boxCoords[0]] = b'0'
+						# 	old_path = path(
+						# 		(newCoords[1], newCoords[0]), 
+						# 		(closestStr[1], closestStr[0]),
+						# 		100,
+						# 		np.where((temp == b'4') | (temp == b'3') | (temp == b'5'), False, True)
+						# 	)
+						# 	if len(path_to_closest) <= len(old_path) + 1:
+						# 		reward = 100 / max(len(path_to_closest), 1)
+						# 	else: 
+						# 		print("LONGER PATH")
+						# 		reward = -1
+						# except:
+						# 	print("\n\nPATH FINDER ERROR\n")
+						# 	if self.distance(newCoords, closestStr) < self.distance(boxCoords, closestStr) + 1:
+						# 		reward = 100 / max(abs(
+						# 			self.distance(newCoords, closestStr) - self.distance(boxCoords, closestStr)),  
+						# 		1)
+						# 		print("NEW REWARD: ", reward)
+						# 	else: reward = -1
+							
+
+					# else:
+					# 	# check for naive deadlocks
+					# 	if self.isDeadLocked(boxCoords):
+					# 			reward = -300
+					# 			deadLocked = True
 				else:
 					return reward, False
 					
@@ -346,7 +419,13 @@ class Environment:
 
 			self.board[self.player[1]][self.player[0]] = newState
 
+			if self.movedBox and boxCoords not in self.storage:
+				if self.isDeadLocked(boxCoords):
+					reward = -1000
+					deadLocked=True
+
 		self.totalReward += reward
+
 		if self.terminal():
 			return reward + 1000, True
 		return reward, False or deadLocked
@@ -438,7 +517,7 @@ class Environment:
 		returns: [[[x, y], a].... [[x, y], a]]
 		"""
 		# convert state to boolean format for path finder
-		bool_state = np.where(self.board == b'4', False, True)
+		bool_state = np.where((self.board == b'4') | (self.board == b'3') | (self.board == b'5'), False, True)
 		inverseLoc = {"l": "r", "r": "l", "u": "d", "d": "u"}
 		actions = []
 		for box in self.boxes:
@@ -456,7 +535,7 @@ class Environment:
 					for action in validActions:
 						# set the coordinates to current box
 						coord = box
-						pushedBox = coord
+						pushedBox = coord.copy()
 
 						# get the inverse location i.e. if moving up need to be able to access down location
 						inverse = inverseLoc[action]
@@ -466,14 +545,16 @@ class Environment:
 						else:
 							pushedBox = [coord[0]+self.movements[action], coord[1]]
 							coord = [coord[0]+self.movements[inverse], coord[1]]
-						if coord not in self.walls and coord not in self.boxes and pushedBox not in self.boxes:
+
+						path_to_push_coord = path(
+							(self.player[1], self.player[0]), 
+							(coord[1], coord[0]), 100, bool_state
+						)
+						if len(path_to_push_coord) > 0 and coord not in self.walls and coord not in self.boxes and pushedBox not in self.boxes:
 							actions.extend([box, action])
 			except:
 				pass
-		output = []
-		for i in range(int(len(actions)/2)):
-			output.append((actions[2*i],actions[2*i+1])) 
-		return output
+		return actions
 
 	def undo(self, movement: list) -> None:
 		"""
