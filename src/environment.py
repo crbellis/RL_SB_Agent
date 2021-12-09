@@ -85,8 +85,12 @@ class Environment:
 				data = [int(x) for x in data] # cast values to int
 				# board size
 				if lineNum == 0:
-					self.height = data[0]
-					self.width = data[1]
+					if "-" not in path:
+						self.height = data[0]
+						self.width = data[1]
+					else: 
+						self.height = data[1]
+						self.width = data[0]
 				# walls
 				elif lineNum == 1:
 					self.nWalls = data[0]
@@ -420,7 +424,7 @@ class Environment:
 					if newDistance < oldDistance:
 						reward += 100 / max(newDistance, 1) 
 					else:
-						reward -= 10 / max(newDistance, 1)
+						reward -= 100 / max(newDistance, 1)
 
 					self.movedBox = True
 					# update current player location to empty space
@@ -845,7 +849,8 @@ class Environment:
 						self.storage[i] = self.storage[i+1]
 						self.storage[i+1] = temp
 					# otherwise not solvable with current 
-					strOrder.pop()
+					if len(strOrder)> 0:
+						strOrder.pop()
 
 		return strOrder	
 	
