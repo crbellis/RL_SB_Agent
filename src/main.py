@@ -17,6 +17,7 @@ from train import train as train2
 # mlcompute.set_mlc_device(device_name='gpu')
 import random
 # from path_finder import heuristic
+from storageOrder import getOrder
 plt.style.use("ggplot")
 
 
@@ -221,7 +222,7 @@ def train(replay, model, target_model, done, size):
 	if len(replay) < MIN_REPLAY_SIZE:
 		return
 
-	batch_size = size * 2
+	batch_size = 512
 
 	# random batch sampling - helps speed up training
 	mini_batch = random.sample(replay, batch_size)
@@ -301,7 +302,9 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		e = Environment()
 		# get input data for DQN model
 		e.read_file(file)
-
+		order = e.getOrder()
+		# storageOrder = getOrder(e)
+		# print("ORDER TO SOLVE: ", storageOrder)
 		size = e.height * e.width
 		# create two models, agent and target model
 		model = agent((None, size), 4)
@@ -321,6 +324,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		avg_loss = []
 		isTerminal = False
 		history=None
+		# while(False):
 		while(not isTerminal and epochs < game_epochs):
 			epochs += 1
 			moves = []
@@ -329,11 +333,13 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			step = 0
 			# reset from file
 			e.read_file(file)
+			e.setOrder(order)
 			state = e.to_float()
 			state /= 6
 
 			repeats = []
-			while(not done and len(moves) < moveLimit):
+			bonusMoves = 0
+			while(not done and len(moves) < moveLimit + bonusMoves):
 				# after Q based action
 				e.pretty_print()
 
@@ -344,7 +350,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 					or [e.player[0] + 1, e.player[1]] in e.boxes)):
 					# print("NOT NEXT TO BOX")
 					block_moves = e.get_moves()
-					block_moves = list(zip(block_moves[::2], block_moves[1::2]))
+					# block_moves = list(zip(block_moves[::2], block_moves[1::2]))
 					if len(block_moves) > 0:
 						block_moves = random.sample(block_moves, 1)
 						for block, action in block_moves:
@@ -399,6 +405,8 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 				reward, done = e.move(action_set[action])	
 				# print("ACTION MADE: ", action_set[action])
 				# new state
+				if reward > 20:
+					bonusMoves += int(reward * 1/3)
 				state = deepcopy(e.to_float())
 				state /= 6
 				# state += np.random.rand(e.height, e.width) / 1000 # adding noise

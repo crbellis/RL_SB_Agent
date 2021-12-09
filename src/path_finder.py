@@ -33,7 +33,7 @@ def heuristic(heuristic_type, block_positions, storage_positions, moveable_squar
 		costs = numpy.array([[manhattan_distance(block_positions[i], storage_positions[j]) for i in range(len(block_positions))] for j in range(len(storage_positions))])
 	else:
 		costs = numpy.array([[maze_search(block_positions[i], storage_positions[j],1000,moveable_squares_matrix) for i in range(len(block_positions))] for j in range(len(storage_positions))])
-	row_indices, column_indices = linear_sum_assignment(costs)  
+	row_indices, column_indices = linear_sum_assignment(costs) 
 	return sum(costs[row_indices[i]][column_indices[i]] for i in range(len(column_indices))) 
 
 def manhattan_distance(pos1, pos2):
@@ -44,6 +44,8 @@ def maze_search(pos1, pos2, max_distance, matrix):
 
 def path(pos1, pos2, max_distance, matrix):
 	currentNode = maze_search_tree(pos1,pos2, max_distance, matrix).solution
+	if currentNode == None:
+		return None
 	output = [[] for i in range(currentNode.depth)]
 	for i in range(1,currentNode.depth+1):
 		output[-i] = currentNode.pos
@@ -108,6 +110,8 @@ class maze_search_tree:
 		self.solution = self.maze_path(max_distance)
 		if pos1 == pos2:
 			self.d = 0
+		elif self.solution == None:
+			self.d = 2**30
 		else:
 			self.d = self.solution.depth	
 		self.reachable_squares = None
@@ -272,8 +276,8 @@ class maze_search_node:
 # args = [[[2, 1], [5, 1]], [[1, 1], [5, 1]], [[False, False, False, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, False, False, False]]]
 # print(heuristic('path', args[0], args[1], args[2]))
 
-block_positions = [[0,0]]
-storage_positions = [[0,0]]
-moveable_squares_matrix = numpy.array([[True]])
+# block_positions = [[0,0]]
+# storage_positions = [[0,0]]
+# moveable_squares_matrix = numpy.array([[True]])
 
 # print(heuristic('m', block_positions, storage_positions, moveable_squares_matrix))

@@ -1,4 +1,4 @@
-import psutil, copy, numpy, path_finder, environment, grids, pickle, time, matplotlib.pyplot as plt
+import psutil, copy, numpy, path_finder, grids, pickle, time, matplotlib.pyplot as plt
 
 class Node:
 	
@@ -22,12 +22,13 @@ class Node:
 		
 class A_star:
 	
-	def __init__(self, starting_board):
+	def __init__(self, starting_board, max_time = 5):
 		self.starting_board = starting_board
 		self.test_board = copy.deepcopy(starting_board) #this is the object we manipulate to check for heuristic values
 		self.frontier = [Node(None, None, 0)]
 		self.moveable_squares_matrix = list(map(list, zip(*path_finder.get_moveable_squares_matrix(starting_board.to_int()))))
 		self.seen = set()
+		self.max_time = max_time
 	
 	
 	# returns none sub problem cannot be solved
@@ -42,8 +43,8 @@ class A_star:
 		#100MB free memory required
 		v = 0
 		while (len(self.frontier) != 0):
-			if time.time() - t0 > 200:
-				print('timeout')
+			if time.time() - t0 > self.max_time:
+# 				print('timeout')
 				return(False)
 # 			if psutil.virtual_memory()[1] > 100 * 2**23:
 # 				print("out of memory")
@@ -59,9 +60,9 @@ class A_star:
 # 			print('f = ', n.f)
 # 			print('h = ', n.f- n.depth)
 # 			print('d = ',n.depth)
-			if v % 1000 == 0:
-				print(v)
-				self.test_board.pretty_print()
+# 			if v % 1000 == 0:
+# 				print(v)
+# 				self.test_board.pretty_print()
 # 				arr = numpy.array(self.test_board.board, dtype = int)
 # 				print(arr)
 # 				plt.matshow(arr)
@@ -77,7 +78,8 @@ class A_star:
 			
 			#iterate through the moves to create children for the best current node
 			for movement in moves:
-				print("MOVEMENT = ", movement)
+				
+				
 				move = movement[0].copy(),movement[1]
 				new_node = Node(n, move, n.depth+1)
 
@@ -86,7 +88,7 @@ class A_star:
 				
 				board_identifier = self.make_hashable()
 				if not board_identifier in self.seen:
-					if not self.has_2x2_deadlocks(new_box_pos):
+					if not self.test_board.isDeadLocked(move[0]):
 						# The get_h value is like h(n) ~ heuristic, depth is like g(h) ~ cost
 						h = self.get_h()
 						if h == 0:
@@ -102,7 +104,6 @@ class A_star:
 			# sort the frontier based on f
 			self.frontier = [i for i,_ in sorted(zip(self.frontier, [-j.f for j in self.frontier]), key = lambda k: k[1])]
 # 			print('f order = ', [item.f for item in self.frontier])
-		print('frontier empty')
 		return False
 	
 	def has_2x2_deadlocks(self, box_coords):
@@ -134,75 +135,4 @@ class A_star:
 
 
 
-# t = environment.Environment()
-# t.read_file("benchmarks/sokoban02.txt")
-# t.pretty_print()
-# # print(t.get_moves())
-# print(A_star(t).solve())
-
-
-
-
-# grids_sample = pickle.load(open("grids_sample", "rb"))
-# for i in range(len(grids_sample)):
-#  	grids_sample[i] = numpy.array(grids_sample[i], dtype="bytes")
-
-# count = 0
-# t0 = time.time()
-# guide = 0
-# for g in grids_sample:
-# 	print(guide)
-# 	guide += 1
-# 	print(g)
-# 	if b'2' in g or b'3' in g or b'5' in g:
-# 		if not grids.check_deadlocks(g):
-# 			subproblem = grids.a_star_test(g)
-# 			board = environment.Environment(board = subproblem)
-# 			t0 = time.time()
-# 			if A_star(board).solve():
-# 				print('solve time = ', t0 - time.time())
-# 				count += 1
-# 			else:
-# 				print('not solved')
-
-
-
-# grids = grids.enumerate_grids(3)
-# pickle.dump(grids, open("grids3x3", "wb"))
-# print('done')
-# grids_list = [[[3,3,3],[0,0,0],[0,0,0]]]
-
-# deadlocks_3x3 = []
-
-
-
-# testBoard = [[4,4,4,4,4,4,4],[4,2,3,1,3,2,4],[4,0,0,0,0,0,4],[4,4,4,4,4,4,4]]
-#board = environment.Environment(board = testBoard)
-# board.pretty_print()
-#t = A_star(board)
-#print(t.solve())
-
-# subarr = numpy.array([[1,3,3],[3,3,3],[3,3,3]],dtype="bytes")
-
-# print(grids.check_deadlocks(subarr))
-
-# i = 0
-# t0 = time.time()
-# deadlocks_3x3_sans_rotations = []
-# for grid in grids.all_threes:
-# 	print(i)
-# 	b = numpy.array(grid, dtype = "bytes")
-# 	b = grids.a_star_test(b)
-# 	game = environment.Environment(board = b)
-# 	game.pretty_print()
-# # 	print(game.get_moves())
-# # 	print(b)
-# # 	print(A_star(game).solve())
-# # 	raise('stop')
-# 	
-# 	if not A_star(game).solve():
-# 		deadlocks_3x3_sans_rotations.append(grid)
-# 	else:
-# 		print(grid)
-# 	i += 1
 	

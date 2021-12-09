@@ -17,7 +17,7 @@ import pickle
 # 		twos.append(temp)
 
 def make_hashable(grid):
-	output = grid.reshape(len(grid[0])*len(grid[1]))
+	output = grid.reshape(len(grid[0])*len(grid))
 	return tuple(output)
 
 # threes = pickle.load(open("deadlocks_3x3_sans_rotations", "rb"))
@@ -144,14 +144,14 @@ def make_hashable(grid):
 
 def check_deadlocks(arr):
 	twos, threes = pickle.load(open("deadlocks", "rb"))
-	twos.add((b'0',b'4',b'4',b'3'))
-	twos.add((b'4',b'3',b'0',b'4'))
-	twos.add((b'3',b'4',b'4',b'0'))
-	twos.add((b'4',b'0',b'3',b'4'))
-	twos.add((b'0',b'4',b'4',b'5'))
-	twos.add((b'4',b'5',b'0',b'4'))
-	twos.add((b'5',b'4',b'4',b'0'))
-	twos.add((b'4',b'0',b'5',b'4'))
+	twos.add(bytes((0,4,4,3)))
+	twos.add(bytes((4,3,0,4)))
+	twos.add(bytes((3,4,4,0)))
+	twos.add(bytes((4,0,3,4)))
+	twos.add(bytes((0,4,4,5)))
+	twos.add(bytes((4,5,0,4)))
+	twos.add(bytes((5,4,4,0)))
+	twos.add(bytes((4,0,5,4)))
 	two_by_two_sub_arrays = []
 	for i in range(len(arr) - 1):
 		for j in range(len(arr[0]) - 1):
@@ -166,7 +166,6 @@ def check_deadlocks(arr):
 	for thr in three_by_three_sub_arrays:
 		if make_hashable(thr) in threes:
 			return True
-
 	return False
 
 #old version
