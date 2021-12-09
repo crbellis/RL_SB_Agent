@@ -296,12 +296,13 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		epsilon = 1 # Epsilon-greedy algorithm, initialized to 1 so every step is random to begin with 
 		max_epsilon = 1
 		min_epsilon = 0.1 # minimum always explore with 1% probability
-		decay = 0.001 # rate of decay for epislon
+		decay = 0.01 # rate of decay for epislon
 
 		# instantiated environment
 		e = Environment()
 		# get input data for DQN model
 		e.read_file(file)
+		e.pretty_print()
 		order = e.getOrder()
 		# storageOrder = getOrder(e)
 		# print("ORDER TO SOLVE: ", storageOrder)
@@ -341,7 +342,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			bonusMoves = 0
 			while(not done and len(moves) < moveLimit + bonusMoves):
 				# after Q based action
-				e.pretty_print()
+				# e.pretty_print()
 
 				# print(len(moves))
 				if (not ([e.player[0], e.player[1] - 1] in e.boxes 
@@ -467,38 +468,39 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 				print("Level solved. Number of moves: ", len(moves))
 				e.pretty_print()
 				print(e.to_int())
+				break
 			
 	except KeyboardInterrupt:
 		print("interupted")
 
 	end = time.time()
 
-	if len(rewards) < epochs:
-		for i in range(len(rewards), epochs):
-			rewards.append(0)
+	# if len(rewards) < epochs:
+	# 	for i in range(len(rewards), epochs):
+	# 		rewards.append(0)
 
-	# print(f"FILE: {file}. MINUTES TO RUN: {(end - start)/60}")
-	plt.plot(range(1, epochs+1), rewards)
-	plt.xlabel("Epoch")
-	plt.ylabel("Reward")
-	plt.show()
-	plt.clf()
-	if len(avg_loss) > 0:
-		plt.plot(range(1, len(avg_loss)+1), avg_loss)
-		plt.xlabel("Epoch")
-		plt.ylabel("Average Loss")
-		plt.title("Avg. Loss per Epoch")
-		plt.show()
-		plt.clf()
+	# # print(f"FILE: {file}. MINUTES TO RUN: {(end - start)/60}")
+	# plt.plot(range(1, epochs+1), rewards)
+	# plt.xlabel("Epoch")
+	# plt.ylabel("Reward")
+	# plt.show()
+	# plt.clf()
+	# if len(avg_loss) > 0:
+	# 	plt.plot(range(1, len(avg_loss)+1), avg_loss)
+	# 	plt.xlabel("Epoch")
+	# 	plt.ylabel("Average Loss")
+	# 	plt.title("Avg. Loss per Epoch")
+	# 	plt.show()
+	# 	plt.clf()
 
-		plt.plot(range(1, len(avg_acc)+1), avg_acc)
-		plt.xlabel("Epoch")
-		plt.ylabel("Average Accuracy")
-		plt.show()
-		plt.clf()
+	# 	plt.plot(range(1, len(avg_acc)+1), avg_acc)
+	# 	plt.xlabel("Epoch")
+	# 	plt.ylabel("Average Accuracy")
+	# 	plt.show()
+	# 	plt.clf()
 
 
-	inspect(model, target_model, file)	
+	# inspect(model, target_model, file)	
 	return [move.upper() for move in moves], (end-start)/60
 
 def test_model(tests = list):
