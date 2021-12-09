@@ -2,6 +2,8 @@ from collections import deque
 import time
 from os import listdir
 from os.path import isfile, join
+
+from tensorflow.python.ops.gen_batch_ops import batch
 from environment import Environment
 import matplotlib.pyplot as plt
 import numpy as np
@@ -215,41 +217,45 @@ def train(replay, model, target_model, done, size):
 	action_idx = {"u":0, "r": 1, "d": 2, "l": 3}
 	# lr = 1e-5
 	gamma = 0.9 # how do rewards in the future affect Q-values
-	MIN_REPLAY_SIZE = 5000
+	MIN_REPLAY_SIZE = 1024
 	if len(replay) < MIN_REPLAY_SIZE:
 		return
 
-	batch_size = min(int(len(replay) * 0.8), 5000)
-	# batch_size = 128
+	batch_size = 512
 
 	# random batch sampling - helps speed up training
 	mini_batch = random.sample(replay, batch_size)
 	# get current states
 	current_states = np.array([transition[0] for transition in mini_batch])
 	# get current states and Q-values
-	current_q = model.predict(current_states.reshape(batch_size, 1, size))
+	target = model.predict(current_states.reshape(batch_size, 1, size))
 	# get next states and Q-values
-	new_states = np.array([transition[3] for transition in mini_batch])
-	future_qs = target_model.predict(new_states.reshape(batch_size, 1, size))
+	next_states = np.array([transition[3] for transition in mini_batch])
+	next_qs = target_model.predict(next_states.reshape(batch_size, 1, size))
+	q_next = tf.math.reduce_max(next_qs, axis=1, keepdims=True).numpy()
 
-	X=[]
-	Y=[]
+	# X=[]
+	# Y=[]
 	
-	negativeCount = 0
+	q_target=np.copy(target)
+	q_target = q_target.reshape(batch_size, 4)
+	q_next = q_next.reshape(batch_size, 4)
 	# loop through sample and calculate Q-value using Bellman Equation
 	for i, (state, action, reward, new_state, done) in enumerate(mini_batch):
 		if done:
-			future_qs[i][0] = 0.0
+			q_target[i, action_idx[action]] = reward
+		else:
+			q_target[i, action_idx[action]] = reward + gamma * q_next[i, action_idx[action]]
 		# if not done:
 		# 	expected_state_action_value = reward + (gamma * np.max(future_qs[i][0]))
 		# else:
-		# 	# expected_state_action_value = 
+		# 	# expected_state_action_value = reward 
 		
-		target = np.copy(current_q[i][0])
+		# target = np.copy(current_q[i][0])
 		# print("EXPECTED: ", expected_state_action_value, end="\t")
 		# current_qs[action_idx[action]] = ((1-lr) * current_qs[action_idx[action]]) + (lr * expected_state_action_value)
 		# current_qs[action_idx[action]] = lr * (expected_state_action_value - current_qs[action_idx[action]])
-		target[action_idx[action]] = reward + gamma * np.max(future_qs[i][0])
+		# target[action_idx[action]] = reward + gamma * np.max(future_qs[i][0]) - target[action_idx[action]]
 		# if reward > 0:
 		# 	print("CURRENT STATE: \n", state * 6)
 		# 	print("ACTION: ", action)
@@ -258,13 +264,17 @@ def train(replay, model, target_model, done, size):
 		# 	print("Q: ", current_qs[action_idx[action]])
 		# 	print()
 
-		X.append(state.reshape(1, size))
-		Y.append(target.reshape(1, 4))
+		# X.append(state.reshape(1, size))
+		# Y.append(target.reshape(1, 4))
 	
-	Y = np.array(Y)
-	X = np.array(X)
+	# Y = np.array(Y)
+	# X = np.array(X)
 	# fit model to Q-values
-	history = model.train_on_batch(X, Y, return_dict=True)
+	history = model.train_on_batch(
+		current_states.reshape(batch_size, 1, size), 
+		q_target.reshape(batch_size, 1, 4), 
+		return_dict=True
+	)
 	return history
 # testing model
 def create_agent(file: str, game_epochs: int, moveLimit: int):
@@ -285,7 +295,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		epsilon = 1 # Epsilon-greedy algorithm, initialized to 1 so every step is random to begin with 
 		max_epsilon = 1
 		min_epsilon = 0.1 # minimum always explore with 1% probability
-		decay = 0.01 # rate of decay for epislon
+		decay = 0.001 # rate of decay for epislon
 
 		# instantiated environment
 		e = Environment()
@@ -303,13 +313,14 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 		# training variables
 		rewards = []
-		steps_to_update_t_m = 0
+		steps_to_update_t_m = 1
 		epochs = 0
 		acc = []
 		avg_acc = []
 		loss = []
 		avg_loss = []
 		isTerminal = False
+		history=None
 		while(not isTerminal and epochs < game_epochs):
 			epochs += 1
 			moves = []
@@ -323,10 +334,37 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 			repeats = []
 			while(not done and len(moves) < moveLimit):
-				# e.pretty_print()
-			
+				# after Q based action
+
+				# print(len(moves))
+				if (not ([e.player[0], e.player[1] - 1] in e.boxes 
+					or [e.player[0], e.player[1] + 1] in e.boxes 
+					or [e.player[0]-1, e.player[1]] in e.boxes 
+					or [e.player[0] + 1, e.player[1]] in e.boxes)):
+					# print("NOT NEXT TO BOX")
+					block_moves = e.get_moves()
+					block_moves = list(zip(block_moves[::2], block_moves[1::2]))
+					if len(block_moves) > 0:
+						block_moves = random.sample(block_moves, 1)
+						for block, action in block_moves:
+							inverse = {"u":"d", "l":"r", "r":"l", "d":"u"}
+							newBlock = block.copy()
+							if action in ("u", "d"):
+								newBlock[1] += e.movements[inverse[action]]
+							else:
+								newBlock[0] += e.movements[inverse[action]]
+							moves_to_block = e.go_to(newBlock)
+							# print("MOVES TO BLOCK: ", moves_to_block)
+							[moves.append(move) for move in moves_to_block]
+							total_R += len(moves_to_block) * -1
+							step += len(moves_to_block)
+							state = e.to_float()
+							state /= 6
+				# after block movement
+						# e.pretty_print()
 				# get valid actions in current state
 				valid_actions = e.parseActions()
+				# print("VALID ACTIONS: ", valid_actions)
 				valid_idx = [action_idx[i] for i in valid_actions]
 
 				# choose an action
@@ -345,7 +383,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 					action = np.argmax(predicted)
 
 				repeats.append(action)
-				if repeats[:3] == repeats[2:5] or repeats[:2] == repeats[2:4]:
+				if repeats[:3] == repeats[2:5] or repeats[-4:-2] == repeats[-2:]:
 					if len(predicted) == 0:
 						action = np.random.choice(valid_idx)	
 					else:
@@ -358,7 +396,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 				prev_state = deepcopy(state)
 				reward, done = e.move(action_set[action])	
-
+				# print("ACTION MADE: ", action_set[action])
 				# new state
 				state = deepcopy(e.to_float())
 				state /= 6
@@ -368,22 +406,21 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 				# experience replay - used to store previous game states
 				replay_buffer.append([prev_state, action_set[action], reward, state, done])
-				if step % 50 == 0:
+				if step % 2 == 0:
 					history = train(replay_buffer, model, target_model, done, size)
 					if history:
 						acc.append(history["accuracy"])
 						loss.append(history["loss"])
 						steps_to_update_t_m += 1
 
-				if steps_to_update_t_m % 2500 == 0 and len(replay_buffer) > 5000:
+				if steps_to_update_t_m % 1000 == 0 and len(replay_buffer) > 500:
 					# update target model weights every 100 steps
 					target_model.set_weights(model.get_weights())
 					print("Copying main model weights to target model")
-					steps_to_update_t_m = 0
+					steps_to_update_t_m = 1
 
 				total_R += reward
 				step += 1
-
 				if done:
 					break
 
@@ -421,7 +458,6 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 				print("Level solved. Number of moves: ", len(moves))
 				e.pretty_print()
 				print(e.to_int())
-				break
 			
 	except KeyboardInterrupt:
 		print("interupted")
@@ -453,7 +489,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		plt.clf()
 
 
-	# inspect(model, target_model, file)	
+	inspect(model, target_model, file)	
 	return [move.upper() for move in moves], (end-start)/60
 
 def test_model(tests = list):
@@ -474,5 +510,5 @@ if __name__ == "__main__":
 	# print(e.get_moves())
 	# files = ["./benchmarks/"+f for f in listdir("./benchmarks/") if isfile(join("./benchmarks/", f)) and "sokoban" in f]
 	# files.sort()
-	test_model(["./benchmarks/sokoban-02.txt"])
+	test_model(["./benchmarks/sokoban-01.txt"])
 	# play()

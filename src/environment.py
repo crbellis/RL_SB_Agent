@@ -1,3 +1,4 @@
+from queue import Empty
 import numpy as np
 import grids
 from path_finder import path
@@ -291,7 +292,43 @@ class Environment:
 		arr = self.board[y-up_pad: y+down_pad, x-left_pad: x+right_pad]
 		result = grids.check_deadlocks(arr)
 		return result
+
+	def go_to(self, coord):
+		path_to_coord = path(
+			(self.player[1], self.player[0]),
+			(coord[1], coord[0]),
+			100,
+			np.where((self.board == b'4') | (self.board == b'3') | (self.board == b'5'), False, True)
+		)
+		path_to_coord = [[x, y] for y, x in path_to_coord]
+		# path_to_coord = list(zip(path_to_coord]))
+		movements = []
+		prevCoord = []
+		for movement in path_to_coord:
+			compare = prevCoord
+			if len(prevCoord) == 0:
+				compare = self.player
+
+			if movement[0] > compare[0]:
+				movements.append("r")
+			elif movement[0] < compare[0]:
+				movements.append("l")
+			
+			if movement[1] > compare[1]:
+				movements.append("d")
+			elif movement[1] < compare[1]:
+				movements.append("u")
+			prevCoord=movement
+
+		oldState = EMPTY
+		if self.player in self.storage:
+			oldState = STORAGE
 		
+		self.board[self.player[1]][self.player[0]] = oldState
+		self.player = path_to_coord[-1]
+		self.board[self.player[1]][self.player[0]] = PLAYER
+		return movements
+
 	def move(self, move: str=None, coords: list = None) -> tuple[int, bool]:
 		"""
 		Moves the players coordinates in a given direction
@@ -359,7 +396,7 @@ class Environment:
 
 					num_moves = len(self.get_moves())
 					reward += (num_moves - self.old_moves) * 0.3
-					reward += 1
+					reward += 5
 					self.old_moves = num_moves
 						# try:
 						# 	temp = self.board.copy()
