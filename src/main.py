@@ -32,7 +32,7 @@ def play():
 	line3 = number of storage locations and coordinates
 	line4 = player's starting coordinates =
 	"""
-	file = "./input_files/sokoban01.txt"
+	file = "./benchmarks/sokoban-02.txt"
 
 	# deadSpaces = [[1,1], [1,2], [1, 3], [1, 4]]
 	e = Environment()
@@ -48,6 +48,7 @@ def play():
 	target_model = agent((None, size), 4)
 	target_model.set_weights(model.get_weights())
 
+	order = e.getOrder()
 	# replay buffer to store previous experiences
 	replay_buffer = deque(maxlen=50000)
 
@@ -129,9 +130,10 @@ def play():
 		print("you quit")
 
 #inspect the model after training
-def inspect(model, target_model, file):
-	e = Environment()
-	e.read_file(file)
+def inspect(model, target_model, file, e = None):
+	if e == None:
+		e = Environment()
+		e.read_file(file)
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
 	move = ""
 	moves = []
@@ -146,6 +148,7 @@ def inspect(model, target_model, file):
 
 	prevCoords = []
 	print(e.get_moves())
+	order = e.getOrder()
 	state = e.to_float()
 	state /= 6
 	state += np.random.rand(e.height, e.width) / 10 # adding noise
@@ -305,7 +308,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		e.pretty_print()
 		order = e.getOrder()
 		# storageOrder = getOrder(e)
-		# print("ORDER TO SOLVE: ", storageOrder)
+		print("ORDER TO SOLVE: ", order)
 		size = e.height * e.width
 		# create two models, agent and target model
 		model = agent((None, size), 4)
@@ -325,6 +328,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		avg_loss = []
 		isTerminal = False
 		history=None
+
 		# while(False):
 		while(not isTerminal and epochs < game_epochs):
 			epochs += 1
@@ -342,7 +346,6 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			bonusMoves = 0
 			while(not done and len(moves) < moveLimit + bonusMoves):
 				# after Q based action
-				# e.pretty_print()
 
 				# print(len(moves))
 				if (not ([e.player[0], e.player[1] - 1] in e.boxes 
@@ -372,7 +375,8 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 						# e.pretty_print()
 				# get valid actions in current state
 				valid_actions = e.parseActions()
-				# print("VALID ACTIONS: ", valid_actions)
+				e.pretty_print()
+				print("VALID ACTIONS: ", valid_actions)
 				valid_idx = [action_idx[i] for i in valid_actions]
 
 				# choose an action
