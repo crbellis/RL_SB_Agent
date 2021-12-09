@@ -31,12 +31,12 @@ def play():
 	line3 = number of storage locations and coordinates
 	line4 = player's starting coordinates =
 	"""
-	file = "./input_files/sokoban02.txt"
+	file = "./input_files/sokoban01.txt"
 
-	deadSpaces = [[1,1], [1,2], [1, 3], [1, 4]]
+	# deadSpaces = [[1,1], [1,2], [1, 3], [1, 4]]
 	e = Environment()
 	e.read_file(file)
-	e.deadSpaces = deadSpaces
+	# e.deadSpaces = deadSpaces
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
 	move = ""
 	moves = []
@@ -75,7 +75,7 @@ def play():
 		e.pretty_print()
 		# print(e.to_float())
 
-
+		print(e.get_moves())
 		action_set = {0: "u", 1: "r", 2: "d", 3:'l'}
 		action_idx = {"u":0, "r": 1, "d": 2, "l": 3}
 		pred = model.predict(state.reshape(1, 1, size)).flatten()
@@ -221,7 +221,7 @@ def train(replay, model, target_model, done, size):
 	if len(replay) < MIN_REPLAY_SIZE:
 		return
 
-	batch_size = 512
+	batch_size = size * 2
 
 	# random batch sampling - helps speed up training
 	mini_batch = random.sample(replay, batch_size)
@@ -335,6 +335,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			repeats = []
 			while(not done and len(moves) < moveLimit):
 				# after Q based action
+				e.pretty_print()
 
 				# print(len(moves))
 				if (not ([e.player[0], e.player[1] - 1] in e.boxes 
@@ -510,5 +511,5 @@ if __name__ == "__main__":
 	# print(e.get_moves())
 	# files = ["./benchmarks/"+f for f in listdir("./benchmarks/") if isfile(join("./benchmarks/", f)) and "sokoban" in f]
 	# files.sort()
-	test_model(["./benchmarks/sokoban-01.txt"])
+	test_model(["./benchmarks/sokoban-02.txt"])
 	# play()
