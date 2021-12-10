@@ -1,6 +1,6 @@
 from collections import deque
 import time
-from os import listdir
+from os import listdir, environ
 from os.path import isfile, join
 from environment import Environment
 import numpy as np
@@ -8,7 +8,8 @@ from copy import deepcopy
 from DQN import agent
 import tensorflow as tf
 import random
-
+# remove tensorflow logs
+environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def train(replay, model, target_model, done, size):
 	"""
@@ -55,7 +56,7 @@ def train(replay, model, target_model, done, size):
 	)
 	return history
 
-def create_agent(file: str, game_epochs: int, moveLimit: int):
+def create_agent(file: str, game_epochs: int, moveLimit: int, verbose: bool = False):
 	"""
 	Model is trained using 2 neural networks, these networks use the same 
 	architecture but have different weights. We can specify when the weights 
@@ -247,7 +248,8 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			if steps_to_update_t_m % 1000 == 0 and len(replay_buffer) > 1024:
 				# update target model weights every 100 steps
 				target_model.set_weights(model.get_weights())
-				print("Copying main model weights to target model")
+				if verbose:
+					print("Copying main model weights to target model")
 				steps_to_update_t_m = 1
 
 			# update total reward and increment step
@@ -267,11 +269,12 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		for box in e.boxes:
 			if box in e.storage:
 				boxCount += 1
-		print(f"{epochs}: reward: {total_R:.0f}. (epsilon: {epsilon:.2f}).", 
-			f" No. of boxes in storage: {boxCount}/{len(e.boxes)}.",
-			f" No. of moves: {len(moves)}",
-			f" Minutes elapsed: {(time.time() -  start) / 60:.2f}",
-			f"Length of replay: {len(replay_buffer)}")
+		if verbose:
+			print(f"{epochs}: reward: {total_R:.0f}. (epsilon: {epsilon:.2f}).", 
+				f" No. of boxes in storage: {boxCount}/{len(e.boxes)}.",
+				f" No. of moves: {len(moves)}",
+				f" Minutes elapsed: {(time.time() -  start) / 60:.2f}",
+				f"Length of replay: {len(replay_buffer)}")
 
 		epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-decay * epochs) # change to epoch 
 
@@ -282,8 +285,9 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 		# prints board state if terminal# prints board state if terminal# prints board state if terminal
 		if e.terminal():
-			print("Level solved. Number of moves: ", len(moves))
-			e.pretty_print()
+			if verbose:
+				print("Level solved. Number of moves: ", len(moves))
+				e.pretty_print()
 			break
 			
 	end = time.time()
@@ -301,10 +305,9 @@ def test_model(tests = list):
 		print("CURRENT FILE: ", test)
 		moves, time_ = create_agent(test, game_epochs=1000, moveLimit=300)
 		print(len(moves), " ".join(moves))
-		print(f"FILE: {test}. Time to run (in minutes): {round(time_, 4)}")
+		# print(f"FILE: {test}. Time to run (in minutes): {round(time_, 4)}")
 		test_times[test] = {"time": round(time_, 4), "moves": moves}
 
-	print(test_times)
 
 if __name__ == "__main__":
 	"""

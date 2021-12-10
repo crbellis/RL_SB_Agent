@@ -12,12 +12,19 @@ with "-" in the name. Meaning, we read the dimension of the boards in those file
 
 ## How to run
 
-<p>You can run our model by importing <code>test_model</code> from <code>main.py</code>. Or within the <code>main.py</code> file editing the line
+<p>
+First, to run the program you will need to install the dependencies by running:<br /><br />
+<code>pip3 install -r requirements.txt</code><br /><br />
+To run the model from main, from the parent directory, you can enter the following command in your terminal:<br /><br />
+<code>python3 src/main.py</code><br /><br />
+<code>main.py</code> runs all the sokoban.txt files in <code>./benchmarks/</code> by default but this can be configured.<br /><br />
+<br />
+The output of the above command is the number of moves along with the sequence of moves.
+### How to configure
+
+You can run our model by importing <code>test_model</code> from <code>main.py</code>. Or within the <code>main.py</code> file editing the line
 <code>files = ["./benchmarks/"+f for f in listdir("./benchmarks/") if isfile(join("./benchmarks/", f)) and "sokoban" in f]</code>
 to point to the correct path.
-
-To run the model from main, your can run the following command in your console:
-<code>python3 src/main.py</code>
 
 Alternatively, if you import the function, <code>test_model</code> accepts a list as an argument, where the list contains paths to the sokoban.txt file(s).
 

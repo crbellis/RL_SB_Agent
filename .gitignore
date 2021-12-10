@@ -1,6 +1,7 @@
 src/__pycache__
 src/.DS_Store
 venv
+venv2
 .DS_Store
 src/train.py
 input_files/
