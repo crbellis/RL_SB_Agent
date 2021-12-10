@@ -7,6 +7,9 @@ Bellisime, Chase, cbellisi, 16401046
 
 Python version: python 3.9
 
+Note: our environment is set up to fix the mixed up row, col pairs for the boards
+with "-" in the name. Meaning, we read the dimension of the boards in those files as columns, rows, instead of rows, columns.
+
 ## How to run
 
 <p>You can run our model by importing <code>test_model</code> from <code>main.py</code>. Or within the <code>main.py</code> file editing the line
