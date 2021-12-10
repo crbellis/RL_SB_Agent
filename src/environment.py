@@ -5,6 +5,7 @@ import copy
 import a_star
 import pickle	
 import numpy, time
+import random
 
 EMPTY = 0
 PLAYER = 1 #"@"
@@ -129,6 +130,7 @@ class Environment:
 			self.board[self.player[1]][self.player[0]] = PLAYER
 			self.board = np.array(self.board, dtype="bytes")
 			self.old_moves = len(self.get_moves())
+			self.candidateIdx = 0
 		except Exception as e:
 			print(e)
 
@@ -164,7 +166,7 @@ class Environment:
 		# 	print("out of bounds")
 		return valid
 
-	def parseActions(self, object: list=None) -> list:
+	def parseActions(self, object: list=None, astar = False) -> list:
 		"""
 		Finds all valid actions given current player state
 		
@@ -219,7 +221,7 @@ class Environment:
 						else:
 							afterBlockCoords[0] += self.movements[action]
 						touchingWall = afterBlockCoords in self.walls
-						if touchingWall:
+						if touchingWall and not astar:
 							if not newCoords in self.storage:
 								can_solve, hashable_board = Environment(board = temp, twos = self.twos, threes = self.threes,\
 												solvable_subproblems=self.solvable_subproblems, saved_deadlocks=self.saved_deadlocks).solve_subproblem\
@@ -457,13 +459,18 @@ class Environment:
 					nrows, ncols = boxes.shape
 					dtype={'names':['f{}'.format(i) for i in range(ncols)],
 						'formats':ncols * [boxes.dtype]}
-
-					if boxCoords == self.candidateOrder[self.candidateIdx]:
+					
+					if self.candidateIdx == 0:
+						flag = False
+					elif newCoords == self.candidateOrder[self.candidateIdx-1]:
+						flag = True
+					else:
+						flag = False
+					if boxCoords == self.candidateOrder[self.candidateIdx] and not flag:
 						reward += 500 * (len(np.intersect1d(boxes.view(dtype), storage.view(dtype)))/len(self.boxes))
 						self.candidateIdx += 1 
-
 						# reward += 500 ** len(np.intersect1d(boxes.view(dtype), storage.view(dtype))) 
-					elif newCoords in self.storage and boxCoords == self.candidateOrder[max(0,self.candidateIdx-1)]:
+					elif flag:
 						reward += -500 * ((len(np.intersect1d(boxes.view(dtype), storage.view(dtype))) + 1)/len(self.boxes))
 						self.candidateIdx -= 1
 						self.candidateIdx = max(0, self.candidateIdx)
@@ -501,6 +508,7 @@ class Environment:
 		if self.terminal():
 			return reward + 1000, True
 		return reward, False or deadLocked
+	
 
 	def zip_coords(self, values: list) -> list:
 		"""
@@ -580,7 +588,8 @@ class Environment:
 		"""
 		return np.array(self.board, dtype="float32")
 	
-	def get_moves(self):
+	
+	def get_moves(self, astar = False):
 		"""
 		Returns all possible box states from current state based on reachable
 		paths
@@ -601,7 +610,7 @@ class Environment:
 				bool_state
 			)
 			if path_to_box != None:
-				validActions = self.parseActions(box)
+				validActions = self.parseActions(box, astar)
 				# loop through valid actions
 				for action in validActions:
 # 					print('before',box, action, validActions)
@@ -624,7 +633,7 @@ class Environment:
 					)
 					if not path_to_push_coord == None and len(path_to_push_coord) > 0 and \
 						 coord not in self.walls and coord not in self.boxes and \
-							  pushedBox not in self.boxes:
+							  pushedBox not in self.boxes and action in self.parseActions(coord, astar):
 						actions.extend([box, action])
 		output = []
 		for i in range(int(len(actions)/2)):
@@ -788,66 +797,61 @@ class Environment:
 		# is a deadlock
 # 		self.saved_deadlocks.add(grids.make_hashable(self.board))
 		return False, new_board_identifier
-
-	def getOrder(self):
-		# loop through storage and remove location and boxes
+	
+	
+	def getOrder2(self):
+		t0 = time.time()
+		i = 1
+		t = 5
+		while True:
+			if time.time() - t0 > 20*i:
+				t0 = time.time()
+				t += 5
+				i += 1
+			order = self.try_random_order(t)
+			if order != None:
+				self.candidateOrder = [self.storage[i[1]] for i in order]
+				return self.candidateOrder
+	
+	def try_random_order(self, t):
 		temp = copy.deepcopy(self.board)
+		box_order = [i for i in range(len(self.boxes))]
+		storage_order = box_order.copy()
+		random.shuffle(box_order)
+		random.shuffle(storage_order)
+		random_matching = [[i,j] for i,j in zip(box_order, storage_order)]
+		self.temp_boards = []
 		
-		strOrder = []
-		# environment.storage = [environment.storage[2]] + environment.storage[0:2]
-		
-		while(len(strOrder) < len(self.boxes)):
-			for i, storage in enumerate(self.storage):
-				# if storage already in strOrder skip
-				# temp env
-				
-				tempE = Environment(board=temp, twos = self.twos, threes = self.threes,
-						solvable_subproblems=self.solvable_subproblems, saved_deadlocks=self.saved_deadlocks)
-
-				# storages to remove from env
-				removeStr = copy.deepcopy(tempE.storage)
-				removeBoxes = copy.deepcopy(tempE.boxes)
-
-				if storage in strOrder:
-					continue
-				# remove current storage from storage to remove
-				removeStr.remove(storage) 
-
-				# remove solved storage units
-				for stor in strOrder:
-					tempE.board[stor[1]][stor[0]] = 5
-					removeStr.remove(stor)
-
-				# remove remaining storage units
-				for stor in removeStr:
-					tempE.board[stor[1]][stor[0]] = 0
-				# tempE.storage = storage + strOrder
-
-				# remove number of boxes to match storage
-				for i in range(len(removeBoxes)-1):
-					tempE.board[removeBoxes[0][1]][removeBoxes[0][0]] = 0
-					removeBoxes.pop(0)
-
-				tempE.boxes = removeBoxes
-
-				tempE = Environment(board=tempE.to_int(),twos = self.twos, threes = self.threes,
-						solvable_subproblems=self.solvable_subproblems, saved_deadlocks=self.saved_deadlocks)
-
-				a = A_star(tempE)
-
-				if a.solve() == True:
-					strOrder.append(storage)
-					break
-				else:
-					if i < len(self.storage)-1:
-						temp = self.storage[i]
-						self.storage[i] = self.storage[i+1]
-						self.storage[i+1] = temp
-					# otherwise not solvable with current 
-					if len(strOrder)> 0:
-						strOrder.pop()
-
-		return strOrder	
+		#initializing reduced board
+		for i in range(len(temp)):
+			for j in range(len(temp[0])):
+				if temp[i,j] == b'2' or temp[i,j] == b'3' or temp[i,j] == b'5' or temp[i,j] == b'6':
+					temp[i,j] = b'0'
+		for box_index, storage_index in random_matching:
+			b_x, b_y = self.boxes[box_index]
+			s_x, s_y = self.storage[storage_index]
+			temp[b_y,b_x] = b'3'
+			temp[s_y,s_x] = b'2'
+			if not b'1' in temp:
+				p_y,p_x = numpy.argwhere(temp == b'0')[0]
+				temp[p_y,p_x] = b'1'
+			tempE = Environment(board=numpy.copy(temp), twos = self.twos, threes = self.threes,
+					solvable_subproblems=self.solvable_subproblems, saved_deadlocks=self.saved_deadlocks)
+			a = A_star(tempE, max_time = t)
+			if a.solve():
+# 				print('before')
+				self.temp_boards.append(temp)
+				temp[b_y,b_x] = b'0'
+				temp[s_y,s_x] = b'4'
+# 				print('after')
+# 				print(temp)
+# 				print('------------------------')
+			else:
+				self.solvable_subproblems = set.union(self.solvable_subproblems, a.test_board.solvable_subproblems)
+				self.saved_deadlocks = set.union(self.saved_deadlocks, a.test_board.saved_deadlocks)
+				return None
+		self.matching = [[self.storage[i[1]], self.boxes[i[0]]] for i in random_matching]
+		return random_matching
 	
 	def setOrder(self, order):
 		self.candidateOrder = order
@@ -898,8 +902,9 @@ class A_star:
 		#100MB free memory required
 		v = 0
 		while (len(self.frontier) != 0):
+# 			print(time.time(),t0)
 			if time.time() - t0 > self.max_time:
-# 				print('timeout')
+# 				raise('timeout')
 				return(False)
 # 			if psutil.virtual_memory()[1] > 100 * 2**23:
 # 				print("out of memory")
@@ -921,14 +926,15 @@ class A_star:
 # 				arr = numpy.array(self.test_board.board, dtype = int)
 # 				print(arr)
 # 				plt.matshow(arr)
-			# if len(numpy.argwhere((self.test_board.board == b'3') | (self.test_board.board == b'5'))) > 1:
-			# 	self.test_board.pretty_print()
+# 			if len(numpy.argwhere((self.test_board.board == b'3') | (self.test_board.board == b'5'))) > 1:
+# 				self.test_board.pretty_print()
 # 			if v == 20:
 # 				raise('stop')
 # 			print(self.test_board.boxes, self.test_board.storage)
 # 			print('-----------------------------------')
 			
-			moves = copy.deepcopy(self.test_board.get_moves())
+			moves = copy.deepcopy(self.test_board.get_moves(astar=True))
+# 			print(v)
 # 			self.test_board.pretty_print()
 # 			print(moves)
 			
@@ -944,11 +950,12 @@ class A_star:
 				
 				board_identifier = self.make_hashable()
 				if not board_identifier in self.seen:
+					self.seen.add(board_identifier)
 					if not self.test_board.isDeadLocked(move[0]):
 						# The get_h value is like h(n) ~ heuristic, depth is like g(h) ~ cost
 						h = self.get_h()
 						if h == 0:
-							# print(self.test_board.board)
+# 							print(self.test_board.board)
 							return True
 							# return self.new_node.list_moves()
 						new_node.f = h + 0.5 * new_node.depth
@@ -961,7 +968,7 @@ class A_star:
 			# sort the frontier based on f
 			self.frontier = [i for i,_ in sorted(zip(self.frontier, [-j.f for j in self.frontier]), key = lambda k: k[1])]
 # 			print('f order = ', [item.f for item in self.frontier])
-# 		print('frontier empty')
+# 		raise('frontier empty')
 		return False
 
 	
@@ -999,6 +1006,13 @@ class A_star:
 # e = Environment(board = b)
 # e.pretty_print()
 # print(e.parseActions())
+
+# e = Environment()
+# e.read_file("benchmarks/sokoban-05a.txt")
+# e.candidateOrder = [[5,4], [6,4], [6,1], [3,1]]
+# print(e.getOrder2())
+# print('got here')
+# print(e.getOrder())
 # b = e.board
 # b[4,6] = 0
 # e = Environment(board=b)

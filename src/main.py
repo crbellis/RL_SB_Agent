@@ -10,14 +10,12 @@ import numpy as np
 from copy import deepcopy
 from DQN import agent
 import tensorflow as tf
-from train import train as train2
 # print(tf.config.list_physical_devices())
 # tf.config.run_functions_eagerly(False)
 # from tensorflow.python.compiler.mlcompute import mlcompute
 # mlcompute.set_mlc_device(device_name='gpu')
 import random
 # from path_finder import heuristic
-from storageOrder import getOrder
 plt.style.use("ggplot")
 
 
@@ -32,11 +30,13 @@ def play():
 	line3 = number of storage locations and coordinates
 	line4 = player's starting coordinates =
 	"""
-	file = "./benchmarks/sokoban-02.txt"
+	file = "./benchmarks/sokoban01.txt"
 
 	# deadSpaces = [[1,1], [1,2], [1, 3], [1, 4]]
 	e = Environment()
 	e.read_file(file)
+	print("ENV: ")
+	e.pretty_print()
 	# e.deadSpaces = deadSpaces
 	moveMap = {"w": "u", "d": "r", "a": "l", "s": "d"}
 	move = ""
@@ -48,7 +48,9 @@ def play():
 	target_model = agent((None, size), 4)
 	target_model.set_weights(model.get_weights())
 
-	order = e.getOrder()
+	
+	order = e.getOrder2()
+	print("ORDER: ", order)
 	# replay buffer to store previous experiences
 	replay_buffer = deque(maxlen=50000)
 
@@ -306,7 +308,7 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 		# get input data for DQN model
 		e.read_file(file)
 		e.pretty_print()
-		order = e.getOrder()
+		order = e.getOrder2()
 		# storageOrder = getOrder(e)
 		print("ORDER TO SOLVE: ", order)
 		size = e.height * e.width
@@ -338,13 +340,13 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 			step = 0
 			# reset from file
 			e.read_file(file)
-			e.setOrder(order)
 			state = e.to_float()
 			state /= 6
 
 			repeats = []
+			blockMovements = 0
 			bonusMoves = 0
-			while(not done and len(moves) < moveLimit + bonusMoves):
+			while(not done and blockMovements < moveLimit + bonusMoves):
 				# after Q based action
 
 				# print(len(moves))
@@ -371,12 +373,14 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 							step += len(moves_to_block)
 							state = e.to_float()
 							state /= 6
+					else:
+						break
 				# after block movement
-						# e.pretty_print()
+				# e.pretty_print()
 				# get valid actions in current state
 				valid_actions = e.parseActions()
-				e.pretty_print()
-				print("VALID ACTIONS: ", valid_actions)
+				# e.pretty_print()
+				# print("VALID ACTIONS: ", valid_actions)
 				valid_idx = [action_idx[i] for i in valid_actions]
 
 				# choose an action
@@ -407,11 +411,13 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 					repeats.pop(0)
 
 				prev_state = deepcopy(state)
-				reward, done = e.move(action_set[action])	
+				reward, done = e.move(action_set[action])
+				if e.movedBox:
+					blockMovements += 1
 				# print("ACTION MADE: ", action_set[action])
 				# new state
 				if reward > 20:
-					bonusMoves += int(reward * 1/3)
+					bonusMoves += int(reward / (e.height + e.width))
 				state = deepcopy(e.to_float())
 				state /= 6
 				# state += np.random.rand(e.height, e.width) / 1000 # adding noise
@@ -479,29 +485,29 @@ def create_agent(file: str, game_epochs: int, moveLimit: int):
 
 	end = time.time()
 
-	# if len(rewards) < epochs:
-	# 	for i in range(len(rewards), epochs):
-	# 		rewards.append(0)
+	if len(rewards) < epochs:
+		for i in range(len(rewards), epochs):
+			rewards.append(0)
 
-	# # print(f"FILE: {file}. MINUTES TO RUN: {(end - start)/60}")
-	# plt.plot(range(1, epochs+1), rewards)
-	# plt.xlabel("Epoch")
-	# plt.ylabel("Reward")
-	# plt.show()
-	# plt.clf()
-	# if len(avg_loss) > 0:
-	# 	plt.plot(range(1, len(avg_loss)+1), avg_loss)
-	# 	plt.xlabel("Epoch")
-	# 	plt.ylabel("Average Loss")
-	# 	plt.title("Avg. Loss per Epoch")
-	# 	plt.show()
-	# 	plt.clf()
+	# print(f"FILE: {file}. MINUTES TO RUN: {(end - start)/60}")
+	plt.plot(range(1, epochs+1), rewards)
+	plt.xlabel("Epoch")
+	plt.ylabel("Reward")
+	plt.show()
+	plt.clf()
+	if len(avg_loss) > 0:
+		plt.plot(range(1, len(avg_loss)+1), avg_loss)
+		plt.xlabel("Epoch")
+		plt.ylabel("Average Loss")
+		plt.title("Avg. Loss per Epoch")
+		plt.show()
+		plt.clf()
 
-	# 	plt.plot(range(1, len(avg_acc)+1), avg_acc)
-	# 	plt.xlabel("Epoch")
-	# 	plt.ylabel("Average Accuracy")
-	# 	plt.show()
-	# 	plt.clf()
+		plt.plot(range(1, len(avg_acc)+1), avg_acc)
+		plt.xlabel("Epoch")
+		plt.ylabel("Average Accuracy")
+		plt.show()
+		plt.clf()
 
 
 	# inspect(model, target_model, file)	
@@ -514,7 +520,7 @@ def test_model(tests = list):
 	test_times  = {}
 	for test in tests: 
 		print("CURRENT FILE: ", test)
-		moves, time_ = create_agent(test, game_epochs=1000, moveLimit=200)
+		moves, time_ = create_agent(test, game_epochs=1000, moveLimit=300)
 		print(len(moves), " ".join(moves))
 		print(f"FILE: {test}. Time to run (in minutes): {round(time_, 4)}")
 		test_times[test] = {"time": round(time_, 4), "moves": moves}
@@ -523,7 +529,7 @@ def test_model(tests = list):
 
 if __name__ == "__main__":
 	# print(e.get_moves())
-	# files = ["./benchmarks/"+f for f in listdir("./benchmarks/") if isfile(join("./benchmarks/", f)) and "sokoban" in f]
-	# files.sort()
-	test_model(["./benchmarks/sokoban-02.txt"])
+	files = ["./benchmarks/"+f for f in listdir("./benchmarks/") if isfile(join("./benchmarks/", f)) and "sokoban" in f]
+	files.sort()
+	test_model(files)
 	# play()

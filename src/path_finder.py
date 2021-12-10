@@ -101,7 +101,7 @@ def get_storage_positions(board):
 # matrix is a matrix of Trues and Falses. Trues are accessible walkways, and Falses are not.
 class maze_search_tree: 
 	def __init__(self, pos1, pos2, max_distance, matrix):
-		self.matrix = numpy.matrix(matrix)
+		self.matrix = numpy.array(matrix)
 		self.pos1 = pos1[0], pos1[1]
 		self.pos2 = pos2[0], pos2[1]
 		self.root = maze_search_node(pos1, 0, None, [])
@@ -116,50 +116,10 @@ class maze_search_tree:
 			self.d = self.solution.depth	
 		self.reachable_squares = None
 	
+	def p(self):
+		plt.matshow(self.matrix)
 	
 	def maze_path(self, max_distance):
-# 		if self.pos2 == (-1,-1):
-# 			self.reachable_squares = [[False for row in self.matrix] for col in self.matrix]
-# 			self.matrix[self.pos1] = False
-# 			self.reachable_squares[self.pos1] = True
-# 			while not self.frontier.empty():
-# 				expanding = self.frontier.get()
-# 				pos = expanding.pos
-# 				
-# 				#down
-# 				down_pos = pos[0]+1,pos[1]
-# 				if down_pos[0] < len(self.matrix) and self.matrix[down_pos]:
-# 					expanding.children += [maze_search_node(down_pos, expanding.depth + 1, expanding, [])]
-# 					self.matrix[down_pos] = False
-# 					self.reachable_squares[down_pos] = True
-# 					
-# 				#up
-# 				up_pos = pos[0]-1,pos[1]
-# 				if up_pos[0] > 0 and self.matrix[up_pos]:
-# 					expanding.children += [maze_search_node(up_pos, expanding.depth + 1, expanding, [])]
-# 					self.matrix[up_pos] = False 
-# 					self.reachable_squares[up_pos] = True
-# 				
-# 				#left
-# 				left_pos = pos[0],pos[1]-1
-# 				if left_pos[1] > 0 and self.matrix[left_pos]:
-# 					expanding.children += [maze_search_node(left_pos, expanding.depth + 1, expanding, [])]
-# 					self.matrix[left_pos] = False 
-# 					self.reachable_squares[left_pos] = True
-# 				
-# 				#right
-# 				right_pos = pos[0],pos[1]+1
-# 				if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
-# 					expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
-# 					self.matrix[right_pos] = False 
-# 					self.reachable_squares[right_pos] = True
-# 				
-# 				# print(expanding.children)
-# 				for child in expanding.children:
-# 					self.frontier.put(child)
-# 					
-# 				if expanding.depth > max_distance:
-# 					return None
 		while not self.frontier.empty():
 			expanding = self.frontier.get()
 			pos = expanding.pos
@@ -182,7 +142,7 @@ class maze_search_tree:
 				return destination_node
 			if up_pos[0] > 0 and self.matrix[up_pos]:
 				expanding.children += [maze_search_node(up_pos, expanding.depth + 1, expanding, [])]
-				self.matrix[up_pos] = False 
+				self.matrix[up_pos] = False
 			
 			#left
 			left_pos = pos[0],pos[1]-1
@@ -192,7 +152,7 @@ class maze_search_tree:
 				return destination_node
 			if left_pos[1] > 0 and self.matrix[left_pos]:
 				expanding.children += [maze_search_node(left_pos, expanding.depth + 1, expanding, [])]
-				self.matrix[left_pos] = False 
+				self.matrix[left_pos] = False
 			
 			#right
 			right_pos = pos[0],pos[1]+1
@@ -200,9 +160,9 @@ class maze_search_tree:
 				destination_node = maze_search_node(right_pos, expanding.depth + 1, expanding, [])
 				expanding.children += [destination_node]
 				return destination_node
-			if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
+			if right_pos[1] < len(self.matrix[0]) and self.matrix[right_pos]:
 				expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
-				self.matrix[right_pos] = False 
+				self.matrix[right_pos] = False
 			
 			# print(expanding.children)
 			for child in expanding.children:
@@ -251,7 +211,7 @@ class maze_search_tree:
 			right_pos = pos[0],pos[1]+1
 			if right_pos == self.pos2:
 				return expanding.depth + 1
-			if right_pos[1] < len(self.matrix[:,0]) and self.matrix[right_pos]:
+			if right_pos[1] < len(self.matrix[0]) and self.matrix[right_pos]:
 				expanding.children += [maze_search_node(right_pos, expanding.depth + 1, expanding, [])]
 				self.matrix[right_pos] = False 
 			
@@ -260,7 +220,6 @@ class maze_search_tree:
 				self.frontier.put(child)
 
 class maze_search_node:
-	
 	def __init__(self, pos, depth, parent, children):
 		self.pos = pos
 		self.depth = depth
@@ -271,13 +230,3 @@ class maze_search_node:
 			return True
 		else:
 			return False
-		
-		
-# args = [[[2, 1], [5, 1]], [[1, 1], [5, 1]], [[False, False, False, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, True, True, False], [False, False, False, False]]]
-# print(heuristic('path', args[0], args[1], args[2]))
-
-# block_positions = [[0,0]]
-# storage_positions = [[0,0]]
-# moveable_squares_matrix = numpy.array([[True]])
-
-# print(heuristic('m', block_positions, storage_positions, moveable_squares_matrix))
