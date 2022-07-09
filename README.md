@@ -1,4 +1,4 @@
-# COMP SCI 271 Sokoban Reinforcement Learning
+# Reinforcement Learning
 
 Authors:
 Wyer, Joseph, jwyer, 48643506
